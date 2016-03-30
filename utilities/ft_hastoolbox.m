@@ -147,6 +147,7 @@ url = {
   'NPMK'          'see https://github.com/BlackrockMicrosystems/NPMK'
   'VIDEOMEG'      'see https://github.com/andreyzhd/VideoMEG'
   'WAVEFRONT'     'see http://mathworks.com/matlabcentral/fileexchange/27982-wavefront-obj-toolbox'
+  'GCMI'          'see http://github.com/robince/gcmi'
   };
 
 if nargin<2
@@ -357,7 +358,10 @@ switch toolbox
   case 'WAVEFRONT'
     filelist = {'write_wobj' 'read_wobj'};
     status = all(cellfun(@exist, filelist, repmat({'file'}, size(filelist))));
-
+  case 'GCMI'
+    filelist = {'copnorm' 'gcmi_cc'};
+    status = all(cellfun(@exist, filelist, repmat({'file'}, size(filelist))));
+    
     % the following are fieldtrip modules/toolboxes
   case 'FILEIO'
     status  = (exist('ft_read_header', 'file') && exist('ft_read_data', 'file') && exist('ft_read_event', 'file') && exist('ft_read_sens', 'file'));
