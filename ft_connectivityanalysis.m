@@ -143,7 +143,7 @@ end
 cfg.feedback    = ft_getopt(cfg, 'feedback', 'none');
 cfg.channel     = ft_getopt(cfg, 'channel', 'all');
 cfg.channelcmb  = ft_getopt(cfg, 'channelcmb', {'all' 'all'});
-cfg.refindx     = ft_getopt(cfg, 'refindx', 'all');
+cfg.refindx     = ft_getopt(cfg, 'refindx', 'all', 1);
 cfg.trials      = ft_getopt(cfg, 'trials', 'all', 1);
 cfg.complex     = ft_getopt(cfg, 'complex', 'abs');
 cfg.jackknife   = ft_getopt(cfg, 'jackknife', 'no');
@@ -344,9 +344,10 @@ switch cfg.method
     cfg.mi.method = ft_getopt(cfg.mi, 'method', 'ibtb'); % default to the information breakdown toolbox
     cfg.mi.numbin = ft_getopt(cfg.mi, 'numbin', 10);
     cfg.mi.lags   = ft_getopt(cfg.mi, 'lags',   0);
+    cfg.mi.montage = ft_getopt(cfg.mi, 'montage', []);
     
     % what are the input requirements?
-    data = ft_checkdata(data, 'datatype', {'raw' 'timelock' 'freq' 'source'});
+    data  = ft_checkdata(data, 'datatype', {'raw' 'timelock' 'freq' 'source'});
     dtype = ft_datatype(data);
     if strcmp(dtype, 'timelock')
       if ~isfield(data, 'trial')
@@ -355,9 +356,15 @@ switch cfg.method
         inparam = 'trial';
       end
       hasrpt = (isfield(data, 'dimord') && ~isempty(strfind(data.dimord, 'rpt')));
+      
+      cfg.refchannel = ft_getopt(cfg, 'refchannel', []);
+      cfg.refindx    = ft_getopt(cfg, 'refindx',    []);
     elseif strcmp(dtype, 'raw')
       inparam = 'trial';
       hasrpt  = 1;
+    
+      cfg.refchannel = ft_getopt(cfg, 'refchannel', []);
+      cfg.refindx    = ft_getopt(cfg, 'refindx',    []);
     elseif strcmp(dtype, 'freq')
       inparam = 'something';
     else
@@ -775,7 +782,7 @@ switch cfg.method
     nrpt = numel(data.cumtapcnt);
     
   case 'mi'
-    % mutual information using the information breakdown toolbox
+    % mutual information using the information breakdown toolbox, or gcmi
     % presence of the toolbox is checked in the low-level function
     
     if ~strcmp(dtype, 'raw') && (numel(cfg.mi.lags)>1 || cfg.mi.lags~=0),
@@ -787,12 +794,39 @@ switch cfg.method
         % ensure the lags to be in samples, not in seconds.
         cfg.mi.lags = round(cfg.mi.lags.*data.fsample);
         
-        dat = catnan(data.trial, max(abs(cfg.mi.lags)));
+        % check which row(s) in the data are the reference
+        if ~isempty(cfg.refchannel) && ~isempty(cfg.refindx)
+          error('either ''cfg.refchannel'', or ''cfg.refindx'' should be specified');
+        elseif ~isempty(cfg.refchannel)
+          cfg.refindx = match_str(data.label, cfg.refchannel);
+        elseif ischar(cfg.refindx) && strcmp(cfg.refindx, 'all')
+          error('this is yet not possible and should be fixed elegantly'); %FIXME now we should decide whether we allow for multivariate reference channels, or we treat the refindx as a per-element vector, i.e. allow for all-to-all
+        end
         
+        dat = catnan(data.trial, max(abs(cfg.mi.lags)));
+               
+        % deal with cfg.mi.montage, which allows for multivariate stuff
+        if ~isempty(cfg.mi.montage)
+          [i1, i2]  = match_str(data.label, cfg.mi.montage.labelorg);
+          i3        = setdiff((1:numel(data.label))',i1);
+          tra       = cfg.mi.montage.tra(:,i2);
+          tra(end+(1:numel(i3)),end+(1:numel(i3))) = eye(numel(i3));
+          newlabel  = [cfg.mi.montage.labelnew;data.label(i3)];
+          
+          % update the refindx
+          cfg.refindx = match_str(newlabel, cfg.refchannel);
+          
+          dat       = dat([i1; i3], :);
+          refindx   = cfg.refindx; 
+        else
+          tra      = [];
+          newlabel = [];
+          refindx  = cfg.refindx;
+        end
         
         if ischar(cfg.refindx) && strcmp(cfg.refindx, 'all')
           outdimord = 'chan_chan';
-        elseif numel(cfg.refindx)==1,
+        elseif numel(cfg.refindx)==1 || numel(cfg.refchannel)==1,
           outdimord = 'chan';
         else
           error('at present cfg.refindx should be either ''all'', or scalar');
@@ -802,6 +836,10 @@ switch cfg.method
           outdimord = [outdimord,'_time'];
         else
           data = rmfield(data, 'time');
+        end
+        
+        if ~isempty(newlabel)
+          data.label = newlabel;
         end
         
       case 'timelock'
@@ -825,10 +863,13 @@ switch cfg.method
         dat = cat(1, data.mom{data.inside});
         % dat = abs(dat);
     end
-    optarg = {'numbin', cfg.mi.numbin, 'lags', cfg.mi.lags, 'refindx', cfg.refindx, 'method', cfg.mi.method};
+    optarg   = {'numbin', cfg.mi.numbin, 'lags', cfg.mi.lags, 'refindx', refindx, 'method', cfg.mi.method};
+    if ~isempty(tra)
+      optarg = cat(2, optarg, {'tra' tra});
+    end
     [datout] = ft_connectivity_mutualinformation(dat, optarg{:});
-    varout = [];
-    nrpt = [];
+    varout   = [];
+    nrpt     = [];
     
   case 'corr'
     % pearson's correlation coefficient

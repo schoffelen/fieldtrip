@@ -47,15 +47,26 @@ function output = ft_connectivity_mutualinformation(input, varargin)
 %
 % $Id$
 
-method  = ft_getopt(varargin, 'method', 'ibtb');
-refindx = ft_getopt(varargin, 'refindx',    'all');
-refdata = ft_getopt(varargin, 'refdata',    []);
-lags    = ft_getopt(varargin, 'lags',       0); % shift of data w.r.t. reference, in samples
+method  = ft_getopt(varargin, 'method',  'ibtb'); % can be gcmi
+refindx = ft_getopt(varargin, 'refindx', 'all', 1);
+refdata = ft_getopt(varargin, 'refdata', []);
+lags    = ft_getopt(varargin, 'lags',    0);  % shift of data w.r.t. reference, in samples
+tra     = ft_getopt(varargin, 'tra',     []); % 1/0-matrix for multivariate combination Nnew x Norg, where Norg = size(input,1)
+
+% check whether the combined options work out
+if ~isempty(tra)
+  tra = full(tra)>0;
+  if strcmp(method, 'ibtb') && ~isequal(tra,eye(size(tra,1))>0),
+    error('method ''ibtb'' in combination with a non-identity ''tra'' is not possible');
+  end
+else
+  tra = eye(size(input,1))>0;
+end
 
 % ensure that the refindx is numeric, defaults to 1:size(input,1), i.e. do
 % all-to-all
 if ischar(refindx) && strcmp(refindx, 'all')
-  refindx = (1:size(input,1))';
+  refindx = (1:size(tra,1))';
 end
     
 switch method
@@ -68,7 +79,7 @@ switch method
     numbin     = ft_getopt(varargin, 'numbin',     10);
     
     % set some additional options that pertain to the algorithmic details of the
-    % mutual information computation
+    % mutual information computation, see the documentation of ibtb
     opts        = ft_getopt(varargin, 'opts', []);
     opts.nt     = ft_getopt(opts, 'nt', []);
     opts.method = ft_getopt(opts, 'method', 'dr');
@@ -85,7 +96,7 @@ switch method
       for k = 1:numel(lags)
         fprintf('computing mutualinformation for time lag in samples %d\n', lags(k));
         
-        beg1 = max(0, lags(k))  + 1;
+        beg1 = max(0,  lags(k)) + 1;
         beg2 = max(0, -lags(k)) + 1;
         n1   = n-abs(lags(k));
         
@@ -106,13 +117,11 @@ switch method
       refindx = size(input,1);
     end
     
-    
     % check validity of refindx
     if length(refindx)~=numel(refindx)
       % could be channelcmb indexing
       error('channelcmb indexing is not supported');
     end
-    
     
     % get rid of nans in the input
     notsel = sum(~isfinite(input))>0;
@@ -121,13 +130,13 @@ switch method
     [nchan, nsmp] = size(input);
     output        = zeros(nchan, numel(refindx))+nan;
     
-    for k = 1:numel(refindx)
-      signal1 = input(refindx(k),:);
+    for p = 1:numel(refindx)
+      signal1 = input(refindx(p),:);
       
       % discretize signal1
       signal1 = binr(signal1, nsmp, numbin, histmethod);
       
-      for m = setdiff(1:size(input,1),refindx(k))
+      for m = setdiff(1:size(input,1),refindx(p))
         signal2 = input(m,:);
         
         % represent signal2 in bins according to signal1's discretization
@@ -140,7 +149,7 @@ switch method
         
         % discretize signal2 and compute mi
         R2 = binr(R, opts.nt', numbin, histmethod);
-        output(m,k) = information(R2, opts, 'I'); % this computes mutual information
+        output(m,p) = information(R2, opts, 'I'); % this computes mutual information
         
       end
     end
@@ -148,17 +157,66 @@ switch method
   case 'gcmi'
     ft_hastoolbox('gcmi', 1);
     
-    % deal with the input data first, i.e. append refdata if needed
+    % set some options
+    cmplx = ft_getopt(varargin, 'complex', 'complex'); % this is only used if data are complex-valued
     
-    % do the copula transform only once
-    for k = 1:size(input,1)
-      input(k,:) = copnorm(input(k,:)')';
+    % verify whether data is complex-valued, check the inputs, and adjust
+    % the input data
+    if ~all(imag(input(:))==0),
+      % a tra deviating from I is currently not supported: ask Robin how to
+      % deal with this, if possible at all
+      if ~isequal(tra,eye(size(tra,1))>0),
+        error('complex-valued input data in combination with multivariate signals is not supported');
+      end
+      switch cmplx
+        case 'complex'
+          % tease apart the real/imag parts, treat as 2D-variable
+          input = cat(1, real(input), imag(input));
+          tra   = cat(2, tra, tra);
+        case 'abs'
+          % take the amplitude
+          input = abs(input);
+        case 'angle'
+          % tease apart the real/imag parts, after amplitude normalization
+          input = input./abs(input);
+          input = cat(1, real(input), imag(input));
+          tra   = cat(2, tra, tra);
+        otherwise
+          error('unsupported value for ''complex''');
+      end
     end
     
-    % for each reference
-    for k = 1:size(input,1)
-      for m = 1:numel(refindx)
-        output(k,m) = mi_gg(input(k,:)',input(refindx(m),:)');
+    nchans = size(tra,1);
+    
+    % deal with NaNs in the input data, e.g. trial boundaries
+    finitevals = isfinite(input);
+      
+    n      = size(input, 2);
+    output = zeros(nchans, numel(refindx), numel(lags)) + nan;
+    
+    % for each lag
+    for m = 1:numel(lags)
+      fprintf('computing mutualinformation for time lag in samples %d\n', lags(m));
+      
+      % get the samples for the relative shifts
+      beg1 = max(0, lags(m))  + 1;
+      beg2 = max(0, -lags(m)) + 1;
+      n1   = n-abs(lags(m));
+        
+      end1 = beg1+n1-1;
+      end2 = beg2+n1-1;
+      
+      
+      for p = 1:numel(refindx)
+        tmprefdata = nan(sum(tra(refindx(p),:)),n);
+        tmprefdata(:, beg1:end1) = input(tra(refindx(p),:), beg2:end2);
+        
+        finitevals2 = sum(finitevals,1)&sum(isfinite(tmprefdata),1); % this conservatively takes only the non-nan samples across all input data channels
+        tmpinput    = copnorm(input(:,finitevals2)')';
+        tmprefdata  = copnorm(tmprefdata(:,finitevals2)')';
+        for k = setdiff(1:size(tra,1),refindx(p))
+          output(k,p,m) = mi_gg(tmpinput(tra(k,:),:)',tmprefdata(:,finitevals2)');
+        end
       end
     end
   otherwise
