@@ -345,6 +345,7 @@ switch cfg.method
     cfg.mi.numbin = ft_getopt(cfg.mi, 'numbin', 10);
     cfg.mi.lags   = ft_getopt(cfg.mi, 'lags',   0);
     cfg.mi.montage = ft_getopt(cfg.mi, 'montage', []);
+    cfg.mi.complex = ft_getopt(cfg.mi, 'complex', 'complex');
     
     % what are the input requirements?
     data  = ft_checkdata(data, 'datatype', {'raw' 'timelock' 'freq' 'source'});
@@ -800,7 +801,7 @@ switch cfg.method
         elseif ~isempty(cfg.refchannel)
           cfg.refindx = match_str(data.label, cfg.refchannel);
         elseif ischar(cfg.refindx) && strcmp(cfg.refindx, 'all')
-          error('this is yet not possible and should be fixed elegantly'); %FIXME now we should decide whether we allow for multivariate reference channels, or we treat the refindx as a per-element vector, i.e. allow for all-to-all
+          %error('this is yet not possible and should be fixed elegantly'); %FIXME now we should decide whether we allow for multivariate reference channels, or we treat the refindx as a per-element vector, i.e. allow for all-to-all
         end
         
         dat = catnan(data.trial, max(abs(cfg.mi.lags)));
@@ -863,7 +864,7 @@ switch cfg.method
         dat = cat(1, data.mom{data.inside});
         % dat = abs(dat);
     end
-    optarg   = {'numbin', cfg.mi.numbin, 'lags', cfg.mi.lags, 'refindx', refindx, 'method', cfg.mi.method};
+    optarg   = {'numbin', cfg.mi.numbin, 'lags', cfg.mi.lags, 'refindx', refindx, 'method', cfg.mi.method, 'complex', cfg.mi.complex};
     if ~isempty(tra)
       optarg = cat(2, optarg, {'tra' tra});
     end
