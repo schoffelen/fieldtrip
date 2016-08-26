@@ -158,21 +158,23 @@ switch method
         case 'complex'
           % tease apart the real/imag parts, treat as 2D-variable, and
           % ensure the nans to behave
+          complexrows = sum(imag(input)~=0,2)>0;
           input(~finitevals) = nan+1i.*nan;
-          input = cat(1, real(input), imag(input));
-          tra   = cat(2, tra, tra);
-          finitevals = cat(1, finitevals, finitevals);
+          input = cat(1, real(input), imag(input(complexrows,:)));
+          tra   = cat(2, tra, tra(:,complexrows));
+          finitevals = cat(1, finitevals, finitevals(complexrows,:));
         case 'abs'
           % take the amplitude
           input = abs(input);
         case 'angle'
           % tease apart the real/imag parts, after amplitude normalization,
           % and ensure the nans to behave
+          complexrows = sum(imag(input)~=0,2)>0;
           input(~finitevals) = nan+1i.*nan;
-          input = input./abs(input);
-          input = cat(1, real(input), imag(input));
-          tra   = cat(2, tra, tra);
-          finitevals = cat(1, finitevals, finitevals);
+          input = input(complexrows,:)./abs(input(complexrows,:));
+          input = cat(1, real(input), imag(input(complexrows,:)));
+          tra   = cat(2, tra, tra(:,complexrows));
+          finitevals = cat(1, finitevals, finitevals(complexrows,:));
         otherwise
           error('unsupported value for ''complex''');
       end

@@ -830,7 +830,8 @@ switch cfg.method
         elseif numel(cfg.refindx)==1 || numel(cfg.refchannel)==1,
           outdimord = 'chan';
         else
-          error('at present cfg.refindx should be either ''all'', or scalar');
+          
+          %error('at present cfg.refindx should be either ''all'', or scalar');
         end
         if numel(cfg.mi.lags)>1
           data.time = cfg.mi.lags./data.fsample;
