@@ -26,48 +26,65 @@ if cfg.preconditionflag,
   if isfield(cfg, 'channel') && ft_senstype(cfg.channel, 'meg_planar')
     cfg.mi.combineplanar = ft_getopt(cfg.mi, 'combineplanar', 'no');
     
-    switch cfg.mi.combineplanar
-      case 'yes'
-        % find the combination of horizontal and vertical channels that should be combined
-        planar      = ft_senslabel(ft_senstype(cfg.channel), 'output', 'planarcombined');
-        [~, sel_dH] = match_str(planar(:,1), cfg.channel);  % indices of the horizontal channels
-        [~, sel_dV] = match_str(planar(:,2), cfg.channel);  % indices of the vertical   channels
-        
-        if length(sel_dH)~=length(sel_dV)
-          error('not all planar channel combinations are complete')
-        end
-        
-        % FIXME check for completeness, and that only planar channels are
-        % in input
-        
-        % define the channel names after combining the planar combinations
-        % they should be sorted according to the order of the planar channels in the data
-        [~, sel_planar] = match_str(cfg.channel(sel_dH),planar(:,1));
-        lab_comb        = planar(sel_planar,3);
-        
-        tok     = tokenize(cfg.dimord, '_');
-        chandim = find(strcmp(tok, 'chan')); % FIXME works only with chandim==1
-        
-        indx_in  = reshape((1:size(dat,1)), cfg.dim);
-        newdim   = cfg.dim;
-        newdim(chandim) = newdim(chandim)./2;
-        indx_out = reshape((1:prod(newdim)), newdim);
-        
-        % create a prod(cfg.dim) x prod(newdim) sparse matrix that instructs how to combine rows of dat
-        x = zeros(0,1);
-        y = zeros(0,1);
-        for k = 1:numel(lab_comb)
-          x = cat(1,x,reshape(cat(1,indx_in(sel_dH(k),:),indx_in(sel_dV(k),:)),[],1));
-          y = cat(1,y,reshape(cat(1,indx_out(k,:),indx_out(k,:)),[],1));
-        end
-        tra = sparse(x,y,ones(numel(x,1)));
-        
-        cfg.dim     = newdim;
-        cfg.channel = lab_comb; 
-        cfg.tra     = tra; % give it back to the cfg, for re-use  
-      otherwise
-        
+    if istrue(cfg.mi.combineplanar)
+      % find the combination of horizontal and vertical channels that should be combined
+      planar      = ft_senslabel(ft_senstype(cfg.channel), 'output', 'planarcombined');
+      
+      [~, sel_dH] = match_str(planar(:,1), cfg.channel);  % indices of the horizontal channels
+      [~, sel_dV] = match_str(planar(:,2), cfg.channel);  % indices of the vertical   channels
+      
+      % find the other channels that are present in the data
+      sel_other = setdiff(1:length(cfg.channel), [sel_dH(:)' sel_dV(:)']);
+      lab_other = cfg.channel(sel_other);
+      
+      
+      if length(sel_dH)~=length(sel_dV)
+        error('not all planar channel combinations are complete')
+      end
+      
+      % FIXME check for completeness, and that only planar channels are
+      % in input
+      
+      % define the channel names after combining the planar combinations
+      % they should be sorted according to the order of the planar channels in the data
+      [~, sel_planar] = match_str(cfg.channel(sel_dH),planar(:,1));
+      lab_comb        = planar(sel_planar,3);
+      
+      tok     = tokenize(cfg.dimord, '_');
+      chandim = find(strcmp(tok, 'chan')); % FIXME works only with chandim==1
+      
+      indx_in  = reshape((1:size(dat,1)), cfg.dim);
+      newdim   = cfg.dim;
+      newdim(chandim) = numel(lab_comb)+numel(lab_other);
+      indx_out = reshape((1:prod(newdim)), newdim);
+      
+      % create a prod(cfg.dim) x prod(newdim) sparse matrix that instructs how to combine rows of dat
+      x = zeros(0,1);
+      y = zeros(0,1);
+      for k = 1:numel(lab_comb)
+        x = cat(1,x,reshape(cat(1,indx_in(sel_dH(k),:),indx_in(sel_dV(k),:)),[],1));
+        y = cat(1,y,reshape(cat(1,indx_out(k,:),indx_out(k,:)),[],1));
+      end
+      for k = numel(lab_comb)+(1:numel(lab_other))
+        x = cat(1,x,reshape(indx_in(sel_other(k-numel(lab_comb)),:),[],1));
+        y = cat(1,y,reshape(indx_out(k,:),[],1));
+      end
+      tra = sparse(x,y,ones(numel(x,1)));
+      
+      cfg.dim     = newdim;
+      cfg.channel = [lab_comb(:);lab_other(:)];
+      cfg.tra     = tra; % give it back to the cfg, for re-use
     end
+    
+    if istrue(cfg.mi.addgradient)
+      tra = ft_getopt(cfg, 'tra', []);
+      if isempty(tra)
+        tra = speye(size(dat,1));
+      end
+      keyboard
+      
+    end
+    
   end
   
   fprintf('performing the copula-transform\n');
