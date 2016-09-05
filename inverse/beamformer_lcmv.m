@@ -69,23 +69,24 @@ if mod(nargin-5,2)
 end
 
 % these optional settings do not have defaults
-powmethod      = keyval('powmethod',     varargin); % the default for this is set below
-subspace       = keyval('subspace',      varargin); % used to implement an "eigenspace beamformer" as described in Sekihara et al. 2002 in HBM
+powmethod      = ft_getopt(varargin, 'powmethod'); % the default for this is set below
+subspace       = ft_getopt(varargin, 'subspace'); % used to implement an "eigenspace beamformer" as described in Sekihara et al. 2002 in HBM
 % these settings pertain to the forward model, the defaults are set in compute_leadfield
-reducerank     = keyval('reducerank',     varargin);
-normalize      = keyval('normalize',      varargin);
-normalizeparam = keyval('normalizeparam', varargin);
+reducerank     = ft_getopt(varargin, 'reducerank');
+normalize      = ft_getopt(varargin, 'normalize');
+normalizeparam = ft_getopt(varargin, 'normalizeparam');
 % these optional settings have defaults
-feedback       = keyval('feedback',      varargin); if isempty(feedback),      feedback = 'text';            end
-keepfilter     = keyval('keepfilter',    varargin); if isempty(keepfilter),    keepfilter = 'no';            end
-keepleadfield  = keyval('keepleadfield', varargin); if isempty(keepleadfield), keepleadfield = 'no';         end
-keepcov        = keyval('keepcov',       varargin); if isempty(keepcov),       keepcov = 'no';               end
-keepmom        = keyval('keepmom',       varargin); if isempty(keepmom),       keepmom = 'yes';              end
-lambda         = keyval('lambda',        varargin); if isempty(lambda  ),      lambda = 0;                   end
-projectnoise   = keyval('projectnoise',  varargin); if isempty(projectnoise),  projectnoise = 'yes';         end
-projectmom     = keyval('projectmom',    varargin); if isempty(projectmom),    projectmom = 'no';            end
-fixedori       = keyval('fixedori',      varargin); if isempty(fixedori),      fixedori = 'no';              end
-computekurt    = keyval('kurtosis',      varargin); if isempty(computekurt),   computekurt = 'no';           end
+feedback       = ft_getopt(varargin, 'feedback', 'text');
+keepfilter     = ft_getopt(varargin, 'keepfilter', 'no');
+keepleadfield  = ft_getopt(varargin, 'keepleadfield', 'no');
+keepcov        = ft_getopt(varargin, 'keepcov', 'no');
+keepmom        = ft_getopt(varargin, 'keepmom', 'yes');
+lambda         = ft_getopt(varargin, 'lambda', 0);
+projectnoise   = ft_getopt(varargin, 'projectnoise', 'yes');
+projectmom     = ft_getopt(varargin, 'projectmom', 'no');
+fixedori       = ft_getopt(varargin, 'fixedori', 'no');
+computekurt    = ft_getopt(varargin, 'kurtosis', 'no');
+weightnorm     = ft_getopt(varargin, 'weightnorm', 'no');
 
 % convert the yes/no arguments to the corresponding logical values
 keepfilter     = istrue(keepfilter);
@@ -249,21 +250,45 @@ for i=1:size(dip.pos,1)
   end
   
   if fixedori
-    % compute the leadfield for the optimal dipole orientation
-    % subsequently the leadfield for only that dipole orientation will be used for the final filter computation
-    % filt = pinv(lf' * invCy * lf) * lf' * invCy;
-    % [u, s, v] = svd(real(filt * Cy * ctranspose(filt)));
-    % in this step the filter computation is not necessary, use the quick way to compute the voxel level covariance (cf. van Veen 1997)
-    [u, s, v] = svd(real(pinv(lf' * invCy *lf)));
-    eta = u(:,1);
-    lf  = lf * eta;
-    if ~isempty(subspace), lforig = lforig * eta; end
-    dipout.ori{i} = eta;
+      switch(weightnorm)
+          case {'unitnoisegain','nai'};
+              % optimal orientation calculation for unit-noise gain beamformer,
+              % (also applies to similar NAI), based on equation 4.47 from Sekihara & Nagarajan (2008)
+              [vv, dd] = eig(pinv(lf' * invCy^2 *lf)*(lf' * invCy *lf));
+              [~,maxeig]=max(diag(dd));
+              eta = vv(:,maxeig);
+              lf  = lf * eta;
+              if ~isempty(subspace), lforig = lforig * eta; end
+              dipout.ori{i} = eta;
+          otherwise
+              % compute the leadfield for the optimal dipole orientation
+              % subsequently the leadfield for only that dipole orientation will be used for the final filter computation
+              % filt = pinv(lf' * invCy * lf) * lf' * invCy;
+              % [u, s, v] = svd(real(filt * Cy * ctranspose(filt)));
+              % in this step the filter computation is not necessary, use the quick way to compute the voxel level covariance (cf. van Veen 1997)
+              [u, s, v] = svd(real(pinv(lf' * invCy *lf)));
+              eta = u(:,1);
+              lf  = lf * eta;
+              if ~isempty(subspace), lforig = lforig * eta; end
+              dipout.ori{i} = eta;
+      end
   end
   
   if isfield(dip, 'filter')
     % use the provided filter
     filt = dip.filter{i};
+  elseif strcmp(weightnorm,'nai')
+    % Van Veen's Neural Activity Index
+    % below equation is equivalent to following:  
+    % filt = pinv(lf' * invCy * lf) * lf' * invCy; 
+    % filt = filt/sqrt(noise*filt*filt');
+    filt = pinv(sqrt(noise * lf' * invCy^2 * lf)) * lf' *invCy; % based on Sekihara & Nagarajan 2008 eqn. 4.15
+  elseif strcmp(weightnorm,'unitnoisegain')
+    % Unit-noise gain minimum variance (aka Borgiotti-Kaplan) beamformer
+    % below equation is equivalent to following:  
+    % filt = pinv(lf' * invCy * lf) * lf' * invCy; 
+    % filt = filt/sqrt(filt*filt');
+    filt = pinv(sqrt(lf' * invCy^2 * lf)) * lf' *invCy;     % Sekihara & Nagarajan 2008 eqn. 4.15
   else
     % construct the spatial filter
     filt = pinv(lf' * invCy * lf) * lf' * invCy;              % van Veen eqn. 23, use PINV/SVD to cover rank deficient leadfield

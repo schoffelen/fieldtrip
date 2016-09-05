@@ -50,6 +50,7 @@ function [type] = ft_filetype(filename, desired, varargin)
 %  - MINC
 %  - Neuralynx
 %  - Neuroscan
+%  - Nihon Koden (*.m00)
 %  - Plexon
 %  - SR Research Eyelink
 %  - SensoMotoric Instruments (SMI) *.txt
@@ -59,6 +60,9 @@ function [type] = ft_filetype(filename, desired, varargin)
 %  - VSM-Medtech/CTF
 %  - Yokogawa
 %  - nifti, gifti
+%  - Nicolet *.e (currently from Natus, formerly Carefusion, Viasys and
+%                 Taugagreining. Also known as Oxford/Teca/Medelec Valor
+%                 - Nervus)
 
 % Copyright (C) 2003-2013 Robert Oostenveld
 %
@@ -150,7 +154,9 @@ end
 
 % the parts of the filename are used further down
 if isdir(filename)
-  p = filename;
+  [p, f, x] = fileparts(filename);
+  p = filename;  % the full path to the directory name
+  d = f;         % the last part of the directory name
   f = '';
   x = '';
 else
@@ -1257,7 +1263,25 @@ elseif filetype_check_extension(filename, '.ah5')
     type = 'AnyWave';
     manufacturer = 'AnyWave, http://meg.univ-amu.fr/wiki/AnyWave';
     content = 'MEG/SEEG/EEG data';
+elseif (isdir(filename) && exist(fullfile(p, [d '.EEG.Poly5']), 'file')) || filetype_check_extension(filename, '.Poly5')
+    type = 'tmsi_poly5';
+    manufacturer = 'TMSi PolyBench';
+    content = 'EEG';
+elseif (isdir(filename) && exist(fullfile(filename, 'DataSetSession.xml'), 'file') && exist(fullfile(filename, 'DataSetProtocol.xml'), 'file'))
+    type = 'mega_neurone';
+    manufacturer = 'Mega - http://www.megaemg.com';
+    content = 'EEG';
+elseif filetype_check_extension(filename, '.e') 
+  type = 'nervus_eeg';  % Nervus/Nicolet EEG files
+  manufacturer = 'Natus';
+  content = 'EEG';
+elseif filetype_check_extension(filename, '.m00')
+  type = 'nihonkohden_m00';
+  manufacturer = 'Nihon Kohden';
+  content = 'continuous EEG';
+  
 end
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % finished determining the filetype
