@@ -48,7 +48,7 @@ if cfg.preconditionflag,
       % define the channel names after combining the planar combinations
       % they should be sorted according to the order of the planar channels in the data
       [~, sel_planar] = match_str(cfg.channel(sel_dH),planar(:,1));
-      lab_comb        = planar(sel_planar,3);
+      lab_comb        = planar(sel_planar,end);
       
       tok     = tokenize(cfg.dimord, '_');
       chandim = find(strcmp(tok, 'chan')); % FIXME works only with chandim==1
@@ -71,21 +71,37 @@ if cfg.preconditionflag,
       end
       tra = sparse(x,y,ones(numel(x,1)));
       
-      cfg.dim     = newdim;
-      cfg.channel = [lab_comb(:);lab_other(:)];
-      cfg.tra     = tra; % give it back to the cfg, for re-use
     end
-    
-    if istrue(cfg.mi.addgradient)
-      tra = ft_getopt(cfg, 'tra', []);
-      if isempty(tra)
-        tra = speye(size(dat,1));
-      end
-      keyboard
-      
-    end
-    
   end
+  
+  if istrue(cfg.mi.addgradient)
+    if isempty(tra)
+      tra = speye(size(dat,1));
+    end
+    
+    tok     = tokenize(cfg.dimord, '_');
+    timedim = find(strcmp(tok, 'time')); % FIXME works only with chandim==1
+    if timedim~=2,
+      error('cfg.mi.addgradient is not supported for the given data');
+    end
+    
+    fprintf('computing the temporal derivative\n');
+    dat_gradient = zeros(size(dat));
+    for k = 1:size(dat,2)
+      dat_gradient(:,k) = reshape(ft_preproc_derivative(reshape(dat(:,k),cfg.dim)),[],1);
+    end
+    dat = cat(1,dat,dat_gradient);
+    clear dat_gradient;
+    tra = cat(1,tra,tra);
+  end
+    
+  if istrue(cfg.mi.combineplanar)
+    % these can now be updated (i.e. only after the addgradient part)
+    cfg.dim     = newdim;
+    cfg.channel = [lab_comb(:);lab_other(:)];
+  end
+  cfg.tra     = tra; % give it back to the cfg, for re-use
+
   
   fprintf('performing the copula-transform\n');
   % FIXME here we should deal with NaNs in the data, note that these can be different across rows (althought that is rare), which prevents the possibility of doing the transform in a single call.
@@ -103,11 +119,22 @@ Y = indexed2boolean(Y);
 % remove the class-specific mean only once (is not done anymore in mi_gd2
 [dat, class_means] = centercolumns(dat,Y);
 
-mi = zeros(size(tra,2),1);
-for k = 1:size(tra,2)
-  mi(k) = mi_gd2(dat(tra(:,k)>0,:)',Y, N, true, true, class_means(tra(:,k)>0,:)'); %JM's version that works with persistent variables, to speed up some computations
+
+Nvar     = full(sum(tra,1));
+uNvar    = unique(Nvar);
+for k = 1:numel(uNvar)
+  sel_col  = Nvar==uNvar(k);
+  sel_row  = full(sum(tra(:,sel_col),2)>0);
+
+  mi = mi_gd_vectorized(dat(sel_row,:)',Y,tra(sel_row,sel_col), true, true, class_means(sel_row,:)');
+  stat.stat(sel_col,1) = mi;
 end
-stat.stat = mi;
+
+% mi = zeros(size(tra,2),1);
+% for k = 1:size(tra,2)
+%   mi(k) = mi_gd2(dat(tra(:,k)>0,:)',Y, N, true, true, class_means(tra(:,k)>0,:)'); %JM's version that works with persistent variables, to speed up some computations
+% end
+% stat.stat = mi;
 
 if nargout>2,
   % add the class-specific means back to the data
