@@ -392,13 +392,13 @@ end
 % try to determine the path of the requested toolbox
 if autoadd>0 && ~status
 
-  % for core fieldtrip modules
+  % for core FieldTrip modules
   prefix = fileparts(which('ft_defaults'));
   if ~status
     status = myaddpath(fullfile(prefix, lower(toolbox)), silent);
   end
 
-  % for external fieldtrip modules
+  % for external FieldTrip modules
   prefix = fullfile(fileparts(which('ft_defaults')), 'external');
   if ~status
     status = myaddpath(fullfile(prefix, lower(toolbox)), silent);
@@ -410,7 +410,7 @@ if autoadd>0 && ~status
     end
   end
 
-  % for contributed fieldtrip extensions
+  % for contributed FieldTrip extensions
   prefix = fullfile(fileparts(which('ft_defaults')), 'contrib');
   if ~status
     status = myaddpath(fullfile(prefix, lower(toolbox)), silent);
