@@ -796,6 +796,11 @@ switch cfg.method
       error('computation of lagged mutual information is only possible with ''raw'' data in the input');
     end
     
+    % if not specified prior to the call, make sure empty 'opts' field exists
+    if ~isfield(cfg.mi, 'opts')
+      cfg.mi.opts = [];
+    end
+ 
     switch dtype
       case 'raw'
         % ensure the lags to be in samples, not in seconds.
@@ -871,7 +876,7 @@ switch cfg.method
         dat = cat(1, data.mom{data.inside});
         % dat = abs(dat);
     end
-    optarg   = {'numbin', cfg.mi.numbin, 'lags', cfg.mi.lags, 'refindx', refindx, 'method', cfg.mi.method, 'complex', cfg.mi.complex};
+    optarg   = {'numbin', cfg.mi.numbin, 'lags', cfg.mi.lags, 'refindx', refindx, 'method', cfg.mi.method, 'complex', cfg.mi.complex, 'opts', cfg.mi.opts};
     if ~isempty(tra)
       optarg = cat(2, optarg, {'tra' tra});
     end
