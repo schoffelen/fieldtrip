@@ -204,8 +204,9 @@ switch method
         
         tmpinput    = copnorm(input(:,finitevals2)')';
         tmprefdata  = copnorm(tmprefdata(:,finitevals2)')';
+
         for k = setdiff(1:size(tra,1),refindx(p))
-          output(k,p,m) = mi_gg(tmpinput(tra(k,:),:)',tmprefdata');
+          output(k,p,m) = mi_gg(tmpinput(tra(k,:),:)',tmprefdata', false, true);
         end
       end
     end
