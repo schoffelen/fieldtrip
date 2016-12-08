@@ -171,7 +171,7 @@ switch method
           % and ensure the nans to behave
           complexrows = sum(imag(input)~=0,2)>0;
           input(~finitevals) = nan+1i.*nan;
-          input = input(complexrows,:)./abs(input(complexrows,:));
+          input(complexrows,:) = input(complexrows,:)./abs(input(complexrows,:));
           input = cat(1, real(input), imag(input(complexrows,:)));
           tra   = cat(2, tra, tra(:,complexrows));
           finitevals = cat(1, finitevals, finitevals(complexrows,:));
@@ -206,7 +206,7 @@ switch method
         tmprefdata  = copnorm(tmprefdata(:,finitevals2)')';
 
         for k = setdiff(1:size(tra,1),refindx(p))
-          output(k,p,m) = mi_gg(tmpinput(tra(k,:),:)',tmprefdata', false, true);
+          output(k,p,m) = mi_gg(tmpinput(tra(k,:),:)',tmprefdata');%, false, true);
         end
       end
     end
