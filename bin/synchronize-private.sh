@@ -404,6 +404,7 @@ ARRAY+=(specest/private/fixname.m)
 ARRAY+=(statfun/private/fixname.m)
 ARRAY+=(test/private/fixname.m)
 ARRAY+=(utilities/private/fixname.m)
+ARRAY+=(compat/matlablt2014b/private/fixname.m)
 sync ${ARRAY[*]}
 
 ################################################################################
@@ -745,14 +746,17 @@ sync ${ARRAY[*]}
 # ft_platform_supports.m
 
 ARRAY=()
+ARRAY+=(utilities/ft_platform_supports.m)
+ARRAY+=(connectivity/private/ft_platform_supports.m)
 ARRAY+=(engine/private/ft_platform_supports.m)
 ARRAY+=(fileio/private/ft_platform_supports.m)
+ARRAY+=(forward/private/ft_platform_supports.m)
+ARRAY+=(inverse/private/ft_platform_supports.m)
 ARRAY+=(peer/private/ft_platform_supports.m)
 ARRAY+=(plotting/private/ft_platform_supports.m)
-ARRAY+=(private/ft_platform_supports.m)
+ARRAY+=(preproc/private/ft_platform_supports.m)
 ARRAY+=(qsub/private/ft_platform_supports.m)
-ARRAY+=(test/private/ft_platform_supports.m)
-ARRAY+=(utilities/private/ft_platform_supports.m)
+ARRAY+=(specest/private/ft_platform_supports.m)
 sync ${ARRAY[*]}
 
 ################################################################################
@@ -1309,8 +1313,9 @@ sync ${ARRAY[*]}
 # lmoutrn.m
 
 ARRAY=()
-ARRAY+=(forward/private/lmoutrn.m)
 ARRAY+=(private/lmoutrn.m)
+ARRAY+=(plotting/private/lmoutrn.m)
+ARRAY+=(forward/private/lmoutrn.m)
 ARRAY+=(utilities/private/lmoutrn.m)
 sync ${ARRAY[*]}
 
@@ -1338,6 +1343,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(plotting/private/ltrisect.mexa64)
+ARRAY+=(private/ltrisect.mexa64)
 ARRAY+=(src/ltrisect.mexa64)
 sync ${ARRAY[*]}
 
@@ -1346,6 +1352,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(plotting/private/ltrisect.mexglx)
+ARRAY+=(private/ltrisect.mexglx)
 ARRAY+=(src/ltrisect.mexglx)
 sync ${ARRAY[*]}
 
@@ -1354,6 +1361,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(plotting/private/ltrisect.mexmac)
+ARRAY+=(private/ltrisect.mexmac)
 ARRAY+=(src/ltrisect.mexmac)
 sync ${ARRAY[*]}
 
@@ -1362,6 +1370,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(plotting/private/ltrisect.mexmaci)
+ARRAY+=(private/ltrisect.mexmaci)
 ARRAY+=(src/ltrisect.mexmaci)
 sync ${ARRAY[*]}
 
@@ -1370,6 +1379,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(plotting/private/ltrisect.mexmaci64)
+ARRAY+=(private/ltrisect.mexmaci64)
 ARRAY+=(src/ltrisect.mexmaci64)
 sync ${ARRAY[*]}
 
@@ -1378,6 +1388,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(plotting/private/ltrisect.mexw32)
+ARRAY+=(private/ltrisect.mexw32)
 ARRAY+=(src/ltrisect.mexw32)
 sync ${ARRAY[*]}
 
@@ -1386,6 +1397,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(plotting/private/ltrisect.mexw64)
+ARRAY+=(private/ltrisect.mexw64)
 ARRAY+=(src/ltrisect.mexw64)
 sync ${ARRAY[*]}
 
@@ -2057,8 +2069,9 @@ sync ${ARRAY[*]}
 # pinvNx2.m
 
 ARRAY=()
-ARRAY+=(forward/private/pinvNx2.m)
 ARRAY+=(private/pinvNx2.m)
+ARRAY+=(plotting/private/pinvNx2.m)
+ARRAY+=(forward/private/pinvNx2.m)
 ARRAY+=(utilities/private/pinvNx2.m)
 sync ${ARRAY[*]}
 
@@ -2078,6 +2091,16 @@ sync ${ARRAY[*]}
 ARRAY=()
 ARRAY+=(forward/private/plgndr.m)
 ARRAY+=(private/plgndr.m)
+ARRAY+=(src/plgndr.m)
+sync ${ARRAY[*]}
+
+################################################################################
+# plgndr.c
+
+ARRAY=()
+ARRAY+=(forward/private/plgndr.c)
+ARRAY+=(private/plgndr.c)
+ARRAY+=(src/plgndr.c)
 sync ${ARRAY[*]}
 
 ################################################################################
@@ -2326,6 +2349,14 @@ ARRAY=()
 ARRAY+=(forward/private/ptriprojn.m)
 ARRAY+=(private/ptriprojn.m)
 ARRAY+=(utilities/private/ptriprojn.m)
+sync ${ARRAY[*]}
+
+################################################################################
+# ptriside.m
+
+ARRAY=()
+ARRAY+=(plotting/private/ptriside.m)
+ARRAY+=(private/ptriside.m)
 sync ${ARRAY[*]}
 
 ################################################################################

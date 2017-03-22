@@ -27,6 +27,8 @@ function ft_plot_lay(lay, varargin)
 %   'vpos'        = vertical position of the lower left corner of the local axes
 %   'width'       = width of the local axes
 %   'height'      = height of the local axes
+% 
+% See also FT_PREPARE_LAYOUT
 
 % Copyright (C) 2009, Robert Oostenveld
 %
@@ -75,7 +77,6 @@ labelalignh   = ft_getopt(varargin, 'labelalignh',  'left');
 labelalignv   = ft_getopt(varargin, 'labelalignv',  'middle');
 labelcolor    = ft_getopt(varargin, 'labelcolor', 'k');
 
-
 % convert between true/false/yes/no etc. statements
 point   = istrue(point);
 box     = istrue(box);
@@ -83,6 +84,11 @@ label   = istrue(label);
 mask    = istrue(mask);
 outline = istrue(outline);
 verbose = istrue(verbose);
+
+% color management
+if ischar(pointcolor) && exist([pointcolor '.m'], 'file')
+  pointcolor = eval(pointcolor);
+end
 
 if ~(point || box || label || mask || outline)
   % there is nothing to be plotted
@@ -139,10 +145,10 @@ Lbl    = lay.label;
 
 if point
   if ~isempty(pointsymbol) && ~isempty(pointcolor) && ~isempty(pointsize) % if they're all non-empty, don't use the default
-    plot(X, Y, 'marker',pointsymbol,'color',pointcolor,'markersize',pointsize,'linestyle','none');
+    plot(X, Y, 'marker', pointsymbol, 'color', pointcolor, 'markersize', pointsize, 'linestyle', 'none');
   else
-    plot(X, Y, 'marker','.','color','b','linestyle','none');
-    plot(X, Y, 'marker','o','color','y','linestyle','none');
+    plot(X, Y, 'marker', '.', 'color', 'b', 'linestyle', 'none');
+    plot(X, Y, 'marker', 'o', 'color', 'y', 'linestyle', 'none');
   end
 end
 
@@ -154,7 +160,7 @@ if label
   % check whether fancy label plotting is needed, this requires a for loop,
   % otherwise print text in a single shot
   if numel(labelrotate)==1
-    text(X+labeloffset, Y+(labeloffset*1.5), Lbl ,'fontsize',labelsize,'fontname',labelfont,'interpreter',interpreter,'horizontalalignment',labelalignh,'verticalalignment',labelalignv,'color',labelcolor);
+    text(X+labeloffset, Y+(labeloffset*1.5), Lbl , 'fontsize', labelsize, 'fontname', labelfont, 'interpreter', interpreter, 'horizontalalignment', labelalignh, 'verticalalignment', labelalignv, 'color', labelcolor);
   else
     n = numel(Lbl);
     if ~iscell(labelalignh)
@@ -167,7 +173,7 @@ if label
       eror('there is something wrong with the input arguments');
     end
     for k = 1:numel(Lbl)
-      text(X(k)+labeloffset, Y(k)+(labeloffset*1.5), Lbl{k}, 'fontsize', labelsize, 'fontname', labelfont, 'interpreter', interpreter, 'horizontalalignment', labelalignh{k}, 'verticalalignment', labelalignv{k}, 'rotation', labelrotate(k),'color',labelcolor);
+      text(X(k)+labeloffset, Y(k)+(labeloffset*1.5), Lbl{k}, 'fontsize', labelsize, 'fontname', labelfont, 'interpreter', interpreter, 'horizontalalignment', labelalignh{k}, 'verticalalignment', labelalignv{k}, 'rotation', labelrotate(k), 'color', labelcolor);
     end
   end
 end
