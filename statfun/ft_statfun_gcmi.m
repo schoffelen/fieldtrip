@@ -128,7 +128,7 @@ if cfg.preconditionflag
 %       warning('Ivar has more than 10% repeated values.')
 %     end
     cY = copnorm(Y);
-    datcel{end+1} = cY';
+    datcel{end+1,1} = cY';
   end
   
   cfg.gcmi.uNvar = uNvar;
@@ -148,7 +148,7 @@ startidx = 1;
 datT = dat';
 Ntrl = size(dat,2);
 if strcmp(cfg.gcmi.method,'cc')
-  cY = dat(:,end);
+  cY = datT(:,end);
 end
 for k=1:numel(uNvar)
   endidx = startidx + uNvarN(k) - 1;
