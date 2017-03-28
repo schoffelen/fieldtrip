@@ -36,9 +36,10 @@ if strcmp(cfg.gcmi.method,'cd_model') || strcmp(cfg.gcmi.method,'cd_mixture')
   if ~all(ismember(Y, 1:Ym));
     error('ft_statfun_gcmi: the design vector is ill-specified');
   end
+  Y = Y-1; % 0-based
 elseif strcmp(cfg.gcmi.method,'cc')
-  % continuous values
-  error('ft_statfun_gcmi: cc not implemented yet')
+  % continuous values (univariate)
+  Y = design(cfg.ivar, :)';
 else
   error(sprintf('ft_statfun_gcmi: unknown method \"%s\"', cfg.gcmi.method));
 end
@@ -53,7 +54,6 @@ if cfg.preconditionflag
     error('ft_statfun_gcmi: complex option not specified')
   end
   
-
   if cfg.gcmi.complex
     tra = speye(size(dat,1));
     switch cfg.gcmi.complex
@@ -120,6 +120,17 @@ if cfg.preconditionflag
     uNvarN(k) = size(datcel{k},1);
     selcol{k} = sel_col;
   end
+
+  % add copnormed design ivar to preconditiooned data
+  if strcmp(cfg.gcmi.method,'cc')
+%     % check for repeated values (slow, remove?)
+%     if numel(unique(Y))./numel(Y) < 0.9
+%       warning('Ivar has more than 10% repeated values.')
+%     end
+    cY = copnorm(Y);
+    datcel{end+1} = cY';
+  end
+  
   cfg.gcmi.uNvar = uNvar;
   cfg.gcmi.uNvarN = uNvarN;
   cfg.gcmi.selcol = selcol;
@@ -136,11 +147,20 @@ selcol = cfg.gcmi.selcol;
 startidx = 1;
 datT = dat';
 Ntrl = size(dat,2);
+if strcmp(cfg.gcmi.method,'cc')
+  cY = dat(:,end);
+end
 for k=1:numel(uNvar)
   endidx = startidx + uNvarN(k) - 1;
   datmc = datT(:,startidx:endidx);
   datmc = reshape(datmc, [Ntrl uNvarN(k)./uNvar(k) uNvar(k)]);
-  mi = mi_model_gd_vec(datmc, Y, Ym, true, true);
+  if strcmp(cfg.gcmi.method,'cd_model')
+    mi = mi_model_gd_vec(datmc, Y, Ym, true, true);
+  elseif strcmp(cfg.gcmi.method,'cd_mixture')
+    mi = mi_mixture_gd_vec(datmc, Y, Ym, true, true);
+  elseif strcmp(cfg.gcmi.method,'cc')
+    mi = mi_gg_vec(datmc, cY, true, true);
+  end
   stat.stat(selcol{k},1) = mi;
 end
 
