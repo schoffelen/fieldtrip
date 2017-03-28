@@ -40,6 +40,7 @@ if strcmp(cfg.gcmi.method,'cd_model') || strcmp(cfg.gcmi.method,'cd_mixture')
 elseif strcmp(cfg.gcmi.method,'cc')
   % continuous values (univariate)
   Y = design(cfg.ivar, :)';
+  cY = copnorm(Y);
 else
   error(sprintf('ft_statfun_gcmi: unknown method \"%s\"', cfg.gcmi.method));
 end
@@ -121,14 +122,12 @@ if cfg.preconditionflag
     selcol{k} = sel_col;
   end
 
-  % add copnormed design ivar to preconditiooned data
+
   if strcmp(cfg.gcmi.method,'cc')
-%     % check for repeated values (slow, remove?)
-%     if numel(unique(Y))./numel(Y) < 0.9
-%       warning('Ivar has more than 10% repeated values.')
-%     end
-    cY = copnorm(Y);
-    datcel{end+1,1} = cY';
+    % check for repeated values (slow, remove?)
+    if numel(unique(Y))./numel(Y) < 0.9
+      warning('Ivar has more than 10% repeated values.')
+    end
   end
   
   cfg.gcmi.uNvar = uNvar;
@@ -147,9 +146,7 @@ selcol = cfg.gcmi.selcol;
 startidx = 1;
 datT = dat';
 Ntrl = size(dat,2);
-if strcmp(cfg.gcmi.method,'cc')
-  cY = datT(:,end);
-end
+
 for k=1:numel(uNvar)
   endidx = startidx + uNvarN(k) - 1;
   datmc = datT(:,startidx:endidx);
