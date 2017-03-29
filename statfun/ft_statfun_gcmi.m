@@ -117,11 +117,14 @@ if cfg.preconditionflag
       indx1 = ix(vi1:uNvar(k):numel(ix));
       datmc(:,:,vi1) = sel_dat(:,indx1);
     end
-    datcel{k} = datmc(:,:)';
+    % only do info calculation on variables
+    % with no nans, in any multivariate dimension
+    idx = all(all(isfinite(datmc),1),3);
+    datmcclean = datmc(:,idx,:);
+    datcel{k} = datmcclean(:,:)';
     uNvarN(k) = size(datcel{k},1);
-    selcol{k} = sel_col;
+    selcol{k} = sel_col & idx;
   end
-
 
   if strcmp(cfg.gcmi.method,'cc')
     % check for repeated values (slow, remove?)
@@ -133,6 +136,7 @@ if cfg.preconditionflag
   cfg.gcmi.uNvar = uNvar;
   cfg.gcmi.uNvarN = uNvarN;
   cfg.gcmi.selcol = selcol;
+  cfg.gcmi.Nvar = size(tra,2);
   dat = cell2mat(datcel);
 end
 
@@ -146,7 +150,7 @@ selcol = cfg.gcmi.selcol;
 startidx = 1;
 datT = dat';
 Ntrl = size(dat,2);
-
+stat.stat = NaN(cfg.gcmi.Nvar,1);
 for k=1:numel(uNvar)
   endidx = startidx + uNvarN(k) - 1;
   datmc = datT(:,startidx:endidx);
