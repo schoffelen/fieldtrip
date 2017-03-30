@@ -158,7 +158,7 @@ for k=1:numel(uNvar)
   if strcmp(cfg.gcmi.method,'cd_model')
     mi = mi_model_gd_vec(datmc, Y, Ym, true, true);
   elseif strcmp(cfg.gcmi.method,'cd_mixture')
-    mi = mi_mixture_gd_vec(datmc, Y, Ym, true, true);
+    mi = mi_mixture_gd_vec(datmc, Y, Ym);
   elseif strcmp(cfg.gcmi.method,'cc')
     mi = mi_gg_vec(datmc, cY, true, true);
   end
