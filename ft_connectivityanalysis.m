@@ -827,7 +827,7 @@ switch cfg.method
         cfg.mi.lags = round(cfg.mi.lags.*data.fsample);
         
         % check which row(s) in the data are the reference
-        if ~isempty(cfg.refchannel) && ~isempty(cfg.refindx)
+        if isempty(cfg.refchannel) && isempty(cfg.refindx)
           error('either ''cfg.refchannel'', or ''cfg.refindx'' should be specified');
         elseif ~isempty(cfg.refchannel)
           cfg.refindx = match_str(data.label, cfg.refchannel);
