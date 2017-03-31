@@ -1,0 +1,175 @@
+function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
+
+% FT_STATISTICS_PREVALENCE performs nonparametric prevalence inference
+% based on:
+% C Allefeld, K Görgen and JD Haynes
+% Valid population inference for information-based imaging: From the
+% second-level t-test to prevalence inference
+%
+% Monte-Carlo estimates of the significance probabilities and/or critical values
+% from the permutation distribution. This function should not be called
+% directly, instead you should call the function that is associated with the
+% type of data on which you want to perform the test.
+%
+% Use as
+%   stat = ft_timelockstatistics(cfg, data1, data2, data3, ...)
+%   stat = ft_freqstatistics    (cfg, data1, data2, data3, ...)
+%   stat = ft_sourcestatistics  (cfg, data1, data2, data3, ...)
+%
+% Where the data is obtained from FT_TIMELOCKANALYSIS, FT_FREQANALYSIS
+% or FT_SOURCEANALYSIS respectively, or from FT_TIMELOCKGRANDAVERAGE,
+% FT_FREQGRANDAVERAGE or FT_SOURCEGRANDAVERAGE respectively and with
+% cfg.method = 'prevalence'
+%
+% The configuration options that can be specified are:
+%   cfg.numrandomization = number of randomizations, can be 'all'
+%   cfg.correctm         = string, apply multiple-comparison correction, 'no', 'max', cluster', 'bonferroni', 'holm', 'hochberg', 'fdr' (default = 'no')
+%   cfg.alpha            = number, critical value for rejecting the null-hypothesis per tail (default = 0.05)
+%   cfg.tail             = number, -1, 1 or 0 (default = 0)
+%   cfg.correcttail      = string, correct p-values or alpha-values when doing a two-sided test, 'alpha','prob' or 'no' (default = 'no')
+%   cfg.ivar             = number or list with indices, independent variable(s)
+%   cfg.uvar             = number or list with indices, unit variable(s)
+%   cfg.wvar             = number or list with indices, within-cell variable(s)
+%   cfg.cvar             = number or list with indices, control variable(s)
+%   cfg.feedback         = string, 'gui', 'text', 'textbar' or 'no' (default = 'text')
+%   cfg.randomseed       = string, 'yes', 'no' or a number (default = 'yes')
+%
+%
+% The statistic that is computed for each sample in each random reshuffling
+% of the data is specified as
+%   cfg.statistic       = 'indepsamplesT'           independent samples T-statistic,
+%                         'indepsamplesF'           independent samples F-statistic,
+%                         'indepsamplesregrT'       independent samples regression coefficient T-statistic,
+%                         'indepsamplesZcoh'        independent samples Z-statistic for coherence,
+%                         'depsamplesT'             dependent samples T-statistic,
+%                         'depsamplesFmultivariate' dependent samples F-statistic MANOVA,
+%                         'depsamplesregrT'         dependent samples regression coefficient T-statistic,
+%                         'actvsblT'                activation versus baseline T-statistic.
+% or you can specify your own low-level statistical function.
+%
+% You can also use a custom statistic of your choise that is sensitive
+% to the expected effect in the data. You can implement the statistic
+% in a "statfun" that will be called for each randomization. The
+% requirements on a custom statistical function is that the function
+% is called statfun_xxx, and that the function returns a structure
+% with a "stat" field containing the single sample statistical values.
+% Check the private functions statfun_xxx (e.g.  with xxx=tstat) for
+% the correct format of the input and output.
+%
+% See also FT_TIMELOCKSTATISTICS, FT_FREQSTATISTICS, FT_SOURCESTATISTICS
+
+% Copyright (C) 2005-2015, Robert Oostenveld
+%
+% This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
+% for the documentation and details.
+%
+%    FieldTrip is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+%
+%    FieldTrip is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with FieldTrip. If not, see <http://www.gnu.org/licenses/>.
+%
+% $Id$
+
+ft_hastoolbox('prevalence-permutation',1);
+
+ft_preamble randomseed; % deal with the user specified random seed
+
+% % % check if the input cfg is valid for this function
+% % cfg = ft_checkconfig(cfg, 'renamed',     {'factor',           'ivar'});
+% % cfg = ft_checkconfig(cfg, 'renamed',     {'unitfactor',       'uvar'});
+% % cfg = ft_checkconfig(cfg, 'renamed',     {'repeatedmeasures', 'uvar'});
+
+% get concatenated data
+
+% split based on uvar and run ft_statistics_montecarlo separately
+cfg.ivar         = ft_getopt(cfg, 'ivar',       []);
+cfg.uvar         = ft_getopt(cfg, 'uvar',       []);
+cfg.precondition = ft_getopt(cfg, 'precondition', []);
+cfg.alpha        = ft_getopt(cfg, 'alpha',      0.05);
+
+% prevalence specific options
+% 1st level permutations
+cfg.numrandomization = ft_getopt(cfg, 'numrandomization', 0);
+% 2nd level permutations
+cfg.numrandomization2 = ft_getopt(cfg, 'numrandomization2', 0);
+
+% check resampling not set to bootstrap?
+
+if isempty(cfg.ivar) || isempty(cfg.uvar)
+  error('ft_statistics_prevalence: ivar (design) and uvar (subject) must be specified')
+end
+if cfg.numrandomization<1 || cfg.numrandomization2<1
+  error('ft_statistics_prevalence: numrandomization and numrandomization2 must be specified')
+end
+
+% for backward compatibility
+if size(design,2)~=size(dat,2)
+  design = transpose(design);
+end
+
+unqU = unique(cfg.uvar);
+NunqU = numel(unqU);
+
+Nrand = cfg.numrandomization;
+perms = zeros(size(dat,1),NunqU,Nrand);
+% build permutations matrix
+tmpcfg = [];
+tmpcfg.statistic = cfg.statistic;
+tmpcfg.numrandomizations = cfg.numrandomizations;
+tmpcfg.keepperms = 'yes';
+tmpcfg.ivar = cfg.ivar;
+% JM: check nesting of randomseed preamble? re 2nd level permutations
+tmpcfg.randomseed = cfg.randomseed;
+tmpcfg.resampling = 'permutation';
+
+% call ft_statistics_montecarlo to do permutations for each subject
+for ui=1:NunqU
+  idx = find(design(uvar,:)==unqU(ui));
+  ustat = ft_statistics_montecarlo(tmpcfg, dat(:,idx), design(:,idx));
+  perms(:,ui,:) = ustat.perms;
+end
+
+% pass to prevalenceCore
+[results, params] = prevalenceCore(perms, cfg.numrandomizations2, cfg.alpha)
+
+% results:      per-voxel analysis results
+%   .puGN         uncorrected p-values for global null hypothesis         (Eq. 24)
+%   .pcGN         corrected p-values for global null hypothesis           (Eq. 26)
+%   .puMN         uncorrected p-values for majority null hypothesis       (Eq. 19)
+%   .pcMN         corrected p-values for majority null hypothesis         (Eq. 21)
+%   .gamma0u      uncorrected prevalence lower bounds                     (Eq. 20)
+%   .gamma0c      corrected prevalence lower bounds                       (Eq. 23)
+%   .aTypical     median values of test statistic where pcMN <= alpha     (Fig. 4b)
+
+% The 'majority null hypothesis' referenced here is a special case of the
+% prevalence null hypothesis (Eq. 17), where the critical value is gamma0 =
+% 0.5. It describes the situation where there is no effect in the majority
+% of subjects in the population. Rejecting it allows to infer that there is
+% an effect in the majority of subjects in the population. aTypical is only
+% defined where the (spatially extended) majority null hypothesis can be
+% rejected. Compare Fig. 4b and 'What does it mean for an effect to be
+% "typical" in the population?' in the Discussion of Allefeld, Goergen and
+% Haynes (2016).
+
+stat = [];
+% median value of effect size where majority show an effect
+% (prevalance > 0.5)
+stat.stat = results.aTypical;
+stat.mask = isfinite(stat.stat); % already nan masked
+% corrected p-values for majority null hypothesis
+stat.prob = results.pcMN;
+stat.probglobal = results.pcGN;
+stat.prevbound = results.gamma0c;
+
+ft_postamble randomseed; % deal with the potential user specified randomseed
+
+
+
