@@ -22,42 +22,34 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 % cfg.method = 'prevalence'
 %
 % The configuration options that can be specified are:
-%   cfg.numrandomization = number of randomizations, can be 'all'
-%   cfg.correctm         = string, apply multiple-comparison correction, 'no', 'max', cluster', 'bonferroni', 'holm', 'hochberg', 'fdr' (default = 'no')
+%   cfg.numrandomization = number of 1st level permutations
+%   cfg.numrandomization2 = number of 2nd level permutations
 %   cfg.alpha            = number, critical value for rejecting the null-hypothesis per tail (default = 0.05)
+%   cfg.ivar             = number or list with indices, independent variable(s)
+%   cfg.uvar             = number or list with indices, unit variable(s) (subjects)
+%
+% The following configuration options effect the behavior of
+% FT_STATISTICS_MONTECARLO which is called to do the first level
+% permutations for each subject. Individual subject results are returned in
+% stat.ustat indexed according to stat.unqUvar.
+%   cfg.precondition     = {'no', 'before', 'after'} 
+%   cfg.correctm         = string, apply multiple-comparison correction, 'no', 'max', cluster', 'bonferroni', 'holm', 'hochberg', 'fdr' (default = 'no')
 %   cfg.tail             = number, -1, 1 or 0 (default = 0)
 %   cfg.correcttail      = string, correct p-values or alpha-values when doing a two-sided test, 'alpha','prob' or 'no' (default = 'no')
-%   cfg.ivar             = number or list with indices, independent variable(s)
-%   cfg.uvar             = number or list with indices, unit variable(s)
 %   cfg.wvar             = number or list with indices, within-cell variable(s)
 %   cfg.cvar             = number or list with indices, control variable(s)
 %   cfg.feedback         = string, 'gui', 'text', 'textbar' or 'no' (default = 'text')
 %   cfg.randomseed       = string, 'yes', 'no' or a number (default = 'yes')
 %
-%
 % The statistic that is computed for each sample in each random reshuffling
 % of the data is specified as
-%   cfg.statistic       = 'indepsamplesT'           independent samples T-statistic,
-%                         'indepsamplesF'           independent samples F-statistic,
-%                         'indepsamplesregrT'       independent samples regression coefficient T-statistic,
-%                         'indepsamplesZcoh'        independent samples Z-statistic for coherence,
-%                         'depsamplesT'             dependent samples T-statistic,
-%                         'depsamplesFmultivariate' dependent samples F-statistic MANOVA,
-%                         'depsamplesregrT'         dependent samples regression coefficient T-statistic,
-%                         'actvsblT'                activation versus baseline T-statistic.
-% or you can specify your own low-level statistical function.
+%   cfg.statistic       = 'gcmi'  Gaussian-Copula Mutual Information
+% with extra options in 
+%   cfg.gcmi (see ft_statfun_gcmi)
 %
-% You can also use a custom statistic of your choise that is sensitive
-% to the expected effect in the data. You can implement the statistic
-% in a "statfun" that will be called for each randomization. The
-% requirements on a custom statistical function is that the function
-% is called statfun_xxx, and that the function returns a structure
-% with a "stat" field containing the single sample statistical values.
-% Check the private functions statfun_xxx (e.g.  with xxx=tstat) for
-% the correct format of the input and output.
+% See also FT_TIMELOCKSTATISTICS, FT_FREQSTATISTICS, FT_SOURCESTATISTICS,
+%          FT_STATISTICS_MONTECARLO
 %
-% See also FT_TIMELOCKSTATISTICS, FT_FREQSTATISTICS, FT_SOURCESTATISTICS
-
 % Copyright (C) 2005-2015, Robert Oostenveld
 %
 % This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
@@ -80,6 +72,7 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 
 ft_hastoolbox('prevalence-permutation',1);
 
+% JM: check nesting of randomseed preamble? re 2nd level permutations
 ft_preamble randomseed; % deal with the user specified random seed
 
 % % % check if the input cfg is valid for this function
@@ -87,9 +80,6 @@ ft_preamble randomseed; % deal with the user specified random seed
 % % cfg = ft_checkconfig(cfg, 'renamed',     {'unitfactor',       'uvar'});
 % % cfg = ft_checkconfig(cfg, 'renamed',     {'repeatedmeasures', 'uvar'});
 
-% get concatenated data
-
-% split based on uvar and run ft_statistics_montecarlo separately
 cfg.ivar         = ft_getopt(cfg, 'ivar',       []);
 cfg.uvar         = ft_getopt(cfg, 'uvar',       []);
 cfg.precondition = ft_getopt(cfg, 'precondition', []);
@@ -100,8 +90,6 @@ cfg.alpha        = ft_getopt(cfg, 'alpha',      0.05);
 cfg.numrandomization = ft_getopt(cfg, 'numrandomization', 0);
 % 2nd level permutations
 cfg.numrandomization2 = ft_getopt(cfg, 'numrandomization2', 0);
-
-% check resampling not set to bootstrap?
 
 if isempty(cfg.ivar) || isempty(cfg.uvar)
   error('ft_statistics_prevalence: ivar (design) and uvar (subject) must be specified')
@@ -115,26 +103,30 @@ if size(design,2)~=size(dat,2)
   design = transpose(design);
 end
 
+% call ft_statistics_montecarlo to do permutations for each subject (uvar)
 unqU = unique(cfg.uvar);
 NunqU = numel(unqU);
 
-Nrand = cfg.numrandomization;
-perms = zeros(size(dat,1),NunqU,Nrand);
-% build permutations matrix
-tmpcfg = [];
-tmpcfg.statistic = cfg.statistic;
-tmpcfg.numrandomizations = cfg.numrandomizations;
+
+tmpcfg = cfg;
 tmpcfg.keepperms = 'yes';
-tmpcfg.ivar = cfg.ivar;
-% JM: check nesting of randomseed preamble? re 2nd level permutations
-tmpcfg.randomseed = cfg.randomseed;
+tmpcfg.uvar = [];
 tmpcfg.resampling = 'permutation';
 
-% call ft_statistics_montecarlo to do permutations for each subject
+% save single subject statistics structures to avoid needing to repeat it
+stat = [];
+stat.unqUvar = unqU;
+stat.ustat = cell(1,NunqU);
+% build permutations matrix
+Nrand = cfg.numrandomization;
+perms = zeros(size(dat,1),NunqU,Nrand);
 for ui=1:NunqU
   idx = find(design(uvar,:)==unqU(ui));
   ustat = ft_statistics_montecarlo(tmpcfg, dat(:,idx), design(:,idx));
   perms(:,ui,:) = ustat.perms;
+  % remove perms from structure returned for each subject
+  rmfield(ustat,'perms');
+  stat.ustat{ui} = ustat;
 end
 
 % pass to prevalenceCore
@@ -159,7 +151,6 @@ end
 % "typical" in the population?' in the Discussion of Allefeld, Goergen and
 % Haynes (2016).
 
-stat = [];
 % median value of effect size where majority show an effect
 % (prevalance > 0.5)
 stat.stat = results.aTypical;

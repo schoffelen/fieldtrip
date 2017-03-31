@@ -152,6 +152,7 @@ url = {
   'NEURONE'       'see http://www.megaemg.com/support/unrestricted-downloads'
   'BREWERMAP'     'see https://nl.mathworks.com/matlabcentral/fileexchange/45208-colorbrewer--attractive-and-distinctive-colormaps'
   'CELLFUNCTION'  'see https://github.com/schoffelen/cellfunction'
+  'PREVALENCE-PERMUTATION' 'see https://github.com/allefeld/prevalence-permutation'
   };
 
 if nargin<2
@@ -370,6 +371,8 @@ switch toolbox
     dependency = {'brewermap' 'brewermap_view'};
   case 'GTEC'
     dependency = {'ghdf5read' 'ghdf5fileimport'};
+  case 'PREVALENCE-PERMUTATION'
+    dependency = {'prevalenceCore'};
     
     % the following are FieldTrip modules/toolboxes
   case 'FILEIO'
