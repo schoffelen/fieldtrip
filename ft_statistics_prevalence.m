@@ -22,13 +22,13 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 % cfg.method = 'prevalence'
 %
 % The configuration options that can be specified are:
-%   cfg.numrandomization = number of 1st level permutations
+%   cfg.numrandomization1 = number of 1st level permutations
 %   cfg.numrandomization2 = number of 2nd level permutations
 %   cfg.alpha            = number, critical value for rejecting the null-hypothesis per tail (default = 0.05)
 %   cfg.ivar             = number or list with indices, independent variable(s)
 %   cfg.uvar             = number or list with indices, unit variable(s) (subjects)
 %
-% The following configuration options effect the behavior of
+% The following configuration options affect the behavior of
 % FT_STATISTICS_MONTECARLO which is called to do the first level
 % permutations for each subject. Individual subject results are returned in
 % stat.ustat indexed according to stat.unqUvar.
@@ -50,7 +50,7 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 % See also FT_TIMELOCKSTATISTICS, FT_FREQSTATISTICS, FT_SOURCESTATISTICS,
 %          FT_STATISTICS_MONTECARLO
 %
-% Copyright (C) 2005-2015, Robert Oostenveld
+% Copyright (C) 2017, Robin Ince
 %
 % This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
 % for the documentation and details.
@@ -72,31 +72,12 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 
 ft_hastoolbox('prevalence-permutation',1);
 
-% JM: check nesting of randomseed preamble? re 2nd level permutations
 ft_preamble randomseed; % deal with the user specified random seed
 
-% % % check if the input cfg is valid for this function
-% % cfg = ft_checkconfig(cfg, 'renamed',     {'factor',           'ivar'});
-% % cfg = ft_checkconfig(cfg, 'renamed',     {'unitfactor',       'uvar'});
-% % cfg = ft_checkconfig(cfg, 'renamed',     {'repeatedmeasures', 'uvar'});
+cfg = ft_checkconfig(cfg, 'required', {'statistic', 'ivar', 'uvar', 'numrandomization1', 'numrandomization2'});
 
-cfg.ivar         = ft_getopt(cfg, 'ivar',       []);
-cfg.uvar         = ft_getopt(cfg, 'uvar',       []);
 cfg.precondition = ft_getopt(cfg, 'precondition', []);
 cfg.alpha        = ft_getopt(cfg, 'alpha',      0.05);
-
-% prevalence specific options
-% 1st level permutations
-cfg.numrandomization = ft_getopt(cfg, 'numrandomization', 0);
-% 2nd level permutations
-cfg.numrandomization2 = ft_getopt(cfg, 'numrandomization2', 0);
-
-if isempty(cfg.ivar) || isempty(cfg.uvar)
-  error('ft_statistics_prevalence: ivar (design) and uvar (subject) must be specified')
-end
-if cfg.numrandomization<1 || cfg.numrandomization2<1
-  error('ft_statistics_prevalence: numrandomization and numrandomization2 must be specified')
-end
 
 % for backward compatibility
 if size(design,2)~=size(dat,2)
@@ -107,30 +88,32 @@ end
 unqU = unique(cfg.uvar);
 NunqU = numel(unqU);
 
+tmpcfg           = removefields(cfg, {'uvar' 'numrandomization1' 'numrandomization2'});
 
-tmpcfg = cfg;
-tmpcfg.keepperms = 'yes';
-tmpcfg.uvar = [];
+% ensure the cfg to ft_statistics_montecarlo to have the correct options
+tmpcfg.keepperms  = 'yes';
 tmpcfg.resampling = 'permutation';
+tmpcfg.numrandomization = cfg.numrandomization1;
 
 % save single subject statistics structures to avoid needing to repeat it
 stat = [];
 stat.unqUvar = unqU;
 stat.ustat = cell(1,NunqU);
 % build permutations matrix
-Nrand = cfg.numrandomization;
-perms = zeros(size(dat,1),NunqU,Nrand);
+Nrand = cfg.numrandomization1;
+perms = zeros(size(dat,1),NunqU,Nrand+1);
 for ui=1:NunqU
-  idx = find(design(uvar,:)==unqU(ui));
+  idx   = find(design(uvar,:)==unqU(ui));
   ustat = ft_statistics_montecarlo(tmpcfg, dat(:,idx), design(:,idx));
-  perms(:,ui,:) = ustat.perms;
+  perms(:,ui,1)     = ustat.stat;
+  perms(:,ui,2:end) = ustat.perms;
   % remove perms from structure returned for each subject
   rmfield(ustat,'perms');
   stat.ustat{ui} = ustat;
 end
 
 % pass to prevalenceCore
-[results, params] = prevalenceCore(perms, cfg.numrandomizations2, cfg.alpha)
+[results, params] = prevalenceCore(perms, cfg.numrandomization2, cfg.alpha)
 
 % results:      per-voxel analysis results
 %   .puGN         uncorrected p-values for global null hypothesis         (Eq. 24)
@@ -156,9 +139,9 @@ end
 stat.stat = results.aTypical;
 stat.mask = isfinite(stat.stat); % already nan masked
 % corrected p-values for majority null hypothesis
-stat.prob = results.pcMN;
+stat.prob       = results.pcMN;
 stat.probglobal = results.pcGN;
-stat.prevbound = results.gamma0c;
+stat.prevbound  = results.gamma0c;
 
 ft_postamble randomseed; % deal with the potential user specified randomseed
 
