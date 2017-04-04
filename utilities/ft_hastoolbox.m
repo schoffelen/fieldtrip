@@ -148,9 +148,11 @@ url = {
   'NPMK'          'see https://github.com/BlackrockMicrosystems/NPMK'
   'VIDEOMEG'      'see https://github.com/andreyzhd/VideoMEG'
   'WAVEFRONT'     'see http://mathworks.com/matlabcentral/fileexchange/27982-wavefront-obj-toolbox'
+  'GCMI'          'see http://github.com/robince/gcmi'
   'NEURONE'       'see http://www.megaemg.com/support/unrestricted-downloads'
   'BREWERMAP'     'see https://nl.mathworks.com/matlabcentral/fileexchange/45208-colorbrewer--attractive-and-distinctive-colormaps'
   'CELLFUNCTION'  'see https://github.com/schoffelen/cellfunction'
+  'PREVALENCE-PERMUTATION' 'see https://github.com/allefeld/prevalence-permutation'
   };
 
 if nargin<2
@@ -361,12 +363,16 @@ switch toolbox
     dependency = {'comp_tstamps' 'load_audio0123', 'load_video123'};
   case 'WAVEFRONT'
     dependency = {'write_wobj' 'read_wobj'};
+  case 'GCMI'
+    dependency = {'copnorm' 'gcmi_cc'};
   case 'NEURONE'
     dependency = {'readneurone' 'readneuronedata' 'readneuroneevents'};
   case 'BREWERMAP'
     dependency = {'brewermap' 'brewermap_view'};
   case 'GTEC'
     dependency = {'ghdf5read' 'ghdf5fileimport'};
+  case 'PREVALENCE-PERMUTATION'
+    dependency = {'prevalenceCore'};
     
     % the following are FieldTrip modules/toolboxes
   case 'FILEIO'

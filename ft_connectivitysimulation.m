@@ -131,12 +131,14 @@ switch cfg.method
   case {'linear_mix'}
     cfg.bpfilter = ft_getopt(cfg, 'bpfilter', 'yes');
     cfg.bpfreq   = ft_getopt(cfg, 'bpfreq',   [15 25]);
+    cfg.bpfilttype = ft_getopt(cfg, 'bpfilttype', 'firws');
     cfg.demean   = ft_getopt(cfg, 'demean',   'yes');
     cfg.absnoise = ft_getopt(cfg, 'absnoise', 1);
     cfg          = ft_checkconfig(cfg, 'required', {'mix' 'delay'});
   case {'mvnrnd'}
     cfg.bpfilter = ft_getopt(cfg, 'bpfilter', 'yes');
     cfg.bpfreq   = ft_getopt(cfg, 'bpfreq',   [15 25]);
+    cfg.bpfilttype = ft_getopt(cfg, 'bpfilttype', 'firws');
     cfg.demean   = ft_getopt(cfg, 'demean',   'yes');
     cfg.absnoise = ft_getopt(cfg, 'absnoise', 1);
     cfg          = ft_checkconfig(cfg, 'required', {'covmat' 'delay'});
@@ -170,7 +172,16 @@ switch cfg.method
       tmp   = zeros(nsignal, nsmp+nlag);
       noise  = mvnrnd(zeros(nsignal,1), cfg.noisecov, nsmp+nlag)';
       state0 = zeros(nsignal*nlag, 1);
-      for m = 1:nlag
+      for m = 1:nlag% cfg.method      = 'ar';
+% cfg.params(:,:,1) = [0.8 0; 
+%                       0 0.8];
+% cfg.params(:,:,2) = [-0.6    0; 
+%                       0.2    -0.9];
+% cfg.params(:,:,3) = [0.1     0.15
+%                       0      0.3];
+% cfg.noisecov      = [0.2 0;
+%                        0 0.2];
+
         indx = ((m-1)*nsignal+1):m*nsignal;
         state0(indx) = params(indx,:)'*noise(:,m);
       end
@@ -190,7 +201,7 @@ switch cfg.method
 
   case {'linear_mix'}
 
-    fltpad = 50; %hard coded to avoid filtering artifacts
+    fltpad = 100; %hard coded to avoid filtering artifacts
     delay  = cfg.delay;
     delay  = delay - min(delay(:)); %make explicitly >= 0
     maxdelay = max(delay(:));
@@ -226,13 +237,22 @@ switch cfg.method
 
     for tr = 1:cfg.ntrials
       mixsignal = randn(nmixsignal,  nsmp + 2*fltpad + maxdelay);
-      mixsignal = preproc(mixsignal, label, offset2time(-fltpad, cfg.fsample, size(mixsignal,2)), cfg, fltpad, fltpad);
+      if nmixsignal==size(cfg.bpfreq,1)
+        for sg = 1:nmixsignal
+          tmpcfg = cfg;
+          tmpcfg.bpfreq = cfg.bpfreq(sg,:);
+          newmixsignal(sg,:) = preproc(mixsignal(sg,:), label, offset2time(-fltpad, cfg.fsample, size(mixsignal,2)), tmpcfg, fltpad, fltpad);
+        end
+      else
+        % it can be done with a single set of cfg settings to preproc
+        newmixsignal = preproc(mixsignal, label, offset2time(-fltpad, cfg.fsample, size(mixsignal,2)), cfg, fltpad, fltpad);
+      end
       tmp       = zeros(cfg.nsignal, nsmp);
       for i=1:cfg.nsignal
         for j=1:nmixsignal
           begsmp   = 1    + delay(i,j);
           endsmp   = nsmp + delay(i,j);
-          tmpmix   = reshape(mix{tr}(i,j,:),[1 nsmp+maxdelay]) .* mixsignal(j,:);
+          tmpmix   = reshape(mix{tr}(i,j,:),[1 nsmp+maxdelay]) .* newmixsignal(j,:);
           tmp(i,:) = tmp(i,:) + tmpmix(begsmp:endsmp);
         end
       end
