@@ -79,6 +79,7 @@ function [stat, cfg] = ft_statistics_montecarlo(cfg, dat, design, varargin)
 %   cfg.voxelstatistic   deprecated
 %   cfg.voxelthreshold   deprecated
 %   cfg.precondition     before|after|[], for the statfun
+%   cfg.keeprandomizations yes|no, may be useful when using first level permutations at the second level
 
 % Copyright (C) 2005-2015, Robert Oostenveld
 %
@@ -128,6 +129,11 @@ cfg.cvar         = ft_getopt(cfg, 'cvar',       []);
 cfg.wvar         = ft_getopt(cfg, 'wvar',       []);
 cfg.correcttail  = ft_getopt(cfg, 'correcttail',  'no');
 cfg.precondition = ft_getopt(cfg, 'precondition', []);
+cfg.keeprandomizations = ft_getopt(cfg, 'keeprandomizations', false);
+
+% convert option into a flag
+keeprand = istrue(cfg.keeprandomizations);
+needrand = keeprand || strcmp(cfg.correctm, 'cluster');
 
 % explicit check for option 'yes' in cfg.correctail.
 if strcmp(cfg.correcttail,'yes')
@@ -287,9 +293,10 @@ time_eval = cputime - time_pre;
 fprintf('estimated time per randomization is %.2f seconds\n', time_eval);
 
 % pre-allocate some memory
-if strcmp(cfg.correctm, 'cluster')
-  statrand = zeros(size(statobs,1), size(resample,1));
-else
+if needrand
+  allstatrand = zeros(size(statobs,1), size(resample,1));
+end
+if ~strcmp(cfg.correctm, 'cluster')
   prb_pos   = zeros(size(statobs));
   prb_neg   = zeros(size(statobs));
 end
@@ -313,15 +320,16 @@ for i=1:Nrand
     tmpdesign = design;                     % the design matrix is not shuffled
     tmpdat    = dat(:,resample(i,:));        % the columns of the data are resampled by means of bootstrapping
   end
-  if strcmp(cfg.correctm, 'cluster')
+  if needrand
     % keep each randomization in memory for cluster postprocessing
     dum = statfun(cfg, tmpdat, tmpdesign);
     if isstruct(dum)
-      statrand(:,i) = dum.stat;
+      allstatrand(:,i) = dum.stat;
     else
-      statrand(:,i) = dum;
+      allstatrand(:,i) = dum;
     end
-  else
+  end
+  if ~strcmp(cfg.correctm, 'cluster')
     % do not keep each randomization in memory, but process them on the fly
     statrand = statfun(cfg, tmpdat, tmpdesign);
     if isstruct(statrand)
@@ -346,7 +354,7 @@ ft_progress('close');
 
 if strcmp(cfg.correctm, 'cluster')
   % do the cluster postprocessing
-  [stat, cfg] = clusterstat(cfg, statrand, statobs);
+  [stat, cfg] = clusterstat(cfg, allstatrand, statobs);
 else
   if ~isequal(cfg.numrandomization, 'all')
     % in case of random permutations (i.e., montecarlo sample, and NOT full
@@ -482,8 +490,11 @@ if ~isfield(stat, 'stat')
   stat.stat = statobs;
 end
 
-if exist('statrand', 'var'),
-  stat.ref = mean(statrand,2);
+if exist('allstatrand', 'var'),
+  stat.ref = mean(allstatrand,2);
+end
+if keeprand
+  stat.statrand = allstatrand;
 end
 
 % return optional other details that were returned by the statfun
