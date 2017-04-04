@@ -2,7 +2,7 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 
 % FT_STATISTICS_PREVALENCE performs nonparametric prevalence inference
 % based on:
-% C Allefeld, K G�rgen and JD Haynes
+% C Allefeld, K Görgen and JD Haynes
 % Valid population inference for information-based imaging: From the
 % second-level t-test to prevalence inference
 %
@@ -52,6 +52,7 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 %          FT_STATISTICS_MONTECARLO
 %
 % Copyright (C) 2017, Robin Ince
+% Copyright (C) 2005-2015, Robert Oostenveld
 %
 % This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
 % for the documentation and details.
@@ -73,6 +74,7 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 
 ft_hastoolbox('prevalence-permutation',1);
 
+
 ft_preamble randomseed; % deal with the user specified random seed
 
 cfg = ft_checkconfig(cfg, 'required', {'statistic', 'ivar', 'uvar', 'numrandomization1', 'numrandomization2'});
@@ -89,6 +91,7 @@ end
 unqU = unique(cfg.uvar);
 NunqU = numel(unqU);
 
+
 tmpcfg           = removefields(cfg, {'uvar' 'numrandomization1' 'numrandomization2'});
 
 % ensure the cfg to ft_statistics_montecarlo to have the correct options
@@ -101,6 +104,7 @@ stat = [];
 stat.unqUvar = unqU;
 stat.ustat = cell(1,NunqU);
 % build permutations matrix
+
 Nrand = cfg.numrandomization1;
 perms = zeros(size(dat,1),NunqU,Nrand+1);
 for ui=1:NunqU
@@ -115,6 +119,7 @@ end
 
 % pass to prevalenceCore
 [results, params] = prevalenceCore(perms, cfg.numrandomization2, cfg.alpha);
+
 
 % results:      per-voxel analysis results
 %   .puGN         uncorrected p-values for global null hypothesis         (Eq. 24)
@@ -140,6 +145,7 @@ end
 stat.stat = results.aTypical;
 stat.mask = isfinite(stat.stat); % already nan masked
 % corrected p-values for majority null hypothesis
+
 stat.prob       = results.pcMN;
 stat.probglobal = results.pcGN;
 stat.prevbound  = results.gamma0c;
