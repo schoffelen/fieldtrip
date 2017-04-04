@@ -91,7 +91,7 @@ NunqU = numel(unqU);
 tmpcfg           = removefields(cfg, {'uvar' 'numrandomization1' 'numrandomization2'});
 
 % ensure the cfg to ft_statistics_montecarlo to have the correct options
-tmpcfg.keepperms  = 'yes';
+tmpcfg.keeprandomizations = 'yes';
 tmpcfg.resampling = 'permutation';
 tmpcfg.numrandomization = cfg.numrandomization1;
 
@@ -106,9 +106,9 @@ for ui=1:NunqU
   idx   = find(design(uvar,:)==unqU(ui));
   ustat = ft_statistics_montecarlo(tmpcfg, dat(:,idx), design(:,idx));
   perms(:,ui,1)     = ustat.stat;
-  perms(:,ui,2:end) = ustat.perms;
+  perms(:,ui,2:end) = ustat.statrand;
   % remove perms from structure returned for each subject
-  rmfield(ustat,'perms');
+  rmfield(ustat,'statrand');
   stat.ustat{ui} = ustat;
 end
 
