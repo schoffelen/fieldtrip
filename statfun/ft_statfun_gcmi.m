@@ -21,7 +21,7 @@ if ~isfield(cfg,'preconditionflag')
 end
 cfg.gcmi             = ft_getopt(cfg, 'gcmi', []);
 if ~isfield(cfg.gcmi, 'method')
-  error('ft_statfun_gcmi: must specify gcmi metho')
+  error('ft_statfun_gcmi: must specify gcmi method')
 end
 cfg.gcmi.complex     = ft_getopt(cfg.gcmi, 'complex', false);
 % get this one as a local variable only

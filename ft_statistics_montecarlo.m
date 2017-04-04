@@ -294,7 +294,7 @@ fprintf('estimated time per randomization is %.2f seconds\n', time_eval);
 
 % pre-allocate some memory
 if needrand
-  statrand = zeros(size(statobs,1), size(resample,1));
+  allstatrand = zeros(size(statobs,1), size(resample,1));
 end
 if ~strcmp(cfg.correctm, 'cluster')
   prb_pos   = zeros(size(statobs));
@@ -324,9 +324,9 @@ for i=1:Nrand
     % keep each randomization in memory for cluster postprocessing
     dum = statfun(cfg, tmpdat, tmpdesign);
     if isstruct(dum)
-      statrand(:,i) = dum.stat;
+      allstatrand(:,i) = dum.stat;
     else
-      statrand(:,i) = dum;
+      allstatrand(:,i) = dum;
     end
   end
   if ~strcmp(cfg.correctm, 'cluster')
@@ -354,7 +354,7 @@ ft_progress('close');
 
 if strcmp(cfg.correctm, 'cluster')
   % do the cluster postprocessing
-  [stat, cfg] = clusterstat(cfg, statrand, statobs);
+  [stat, cfg] = clusterstat(cfg, allstatrand, statobs);
 else
   if ~isequal(cfg.numrandomization, 'all')
     % in case of random permutations (i.e., montecarlo sample, and NOT full
@@ -490,11 +490,11 @@ if ~isfield(stat, 'stat')
   stat.stat = statobs;
 end
 
-if exist('statrand', 'var'),
-  stat.ref = mean(statrand,2);
+if exist('allstatrand', 'var'),
+  stat.ref = mean(allstatrand,2);
 end
-if keeprand,
-  stat.statrand = statrand;
+if keeprand
+  stat.statrand = allstatrand;
 end
 
 % return optional other details that were returned by the statfun

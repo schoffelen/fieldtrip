@@ -2,7 +2,7 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 
 % FT_STATISTICS_PREVALENCE performs nonparametric prevalence inference
 % based on:
-% C Allefeld, K Görgen and JD Haynes
+% C Allefeld, K Gï¿½rgen and JD Haynes
 % Valid population inference for information-based imaging: From the
 % second-level t-test to prevalence inference
 %
@@ -104,7 +104,7 @@ stat.ustat = cell(1,NunqU);
 Nrand = cfg.numrandomization1;
 perms = zeros(size(dat,1),NunqU,Nrand+1);
 for ui=1:NunqU
-  idx   = find(design(uvar,:)==unqU(ui));
+  idx   = find(design(cfg.uvar,:)==unqU(ui));
   ustat = ft_statistics_montecarlo(tmpcfg, dat(:,idx), design(:,idx));
   perms(:,ui,1)     = ustat.stat;
   perms(:,ui,2:end) = ustat.statrand;
@@ -114,7 +114,7 @@ for ui=1:NunqU
 end
 
 % pass to prevalenceCore
-[results, params] = prevalenceCore(perms, cfg.numrandomization2, cfg.alpha)
+[results, params] = prevalenceCore(perms, cfg.numrandomization2, cfg.alpha);
 
 % results:      per-voxel analysis results
 %   .puGN         uncorrected p-values for global null hypothesis         (Eq. 24)
