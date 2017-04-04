@@ -44,6 +44,7 @@ function [stat, cfg] = ft_statistics_prevalence(cfg, dat, design, varargin)
 % The statistic that is computed for each sample in each random reshuffling
 % of the data is specified as
 %   cfg.statistic       = 'gcmi'  Gaussian-Copula Mutual Information
+%  NOTE: in fact, any statistic which returns a positive-number would be fine, right?
 % with extra options in 
 %   cfg.gcmi (see ft_statfun_gcmi)
 %
