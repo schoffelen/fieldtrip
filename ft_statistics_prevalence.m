@@ -88,7 +88,7 @@ if size(design,2)~=size(dat,2)
 end
 
 % call ft_statistics_montecarlo to do permutations for each subject (uvar)
-unqU = unique(cfg.uvar);
+unqU = unique(design(cfg.uvar,:));
 NunqU = numel(unqU);
 
 
