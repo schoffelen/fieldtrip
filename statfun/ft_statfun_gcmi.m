@@ -21,11 +21,11 @@ if ~isfield(cfg,'preconditionflag')
 end
 cfg.gcmi             = ft_getopt(cfg, 'gcmi', []);
 if ~isfield(cfg.gcmi, 'method')
-  error('ft_statfun_gcmi: must specify gcmi metho')
+  error('ft_statfun_gcmi: must specify gcmi method')
 end
 cfg.gcmi.complex     = ft_getopt(cfg.gcmi, 'complex', false);
 % get this one as a local variable only
-tra                  = ft_getopt(cfg.gcmi, 'tra', []);
+tra                  = ft_getopt(cfg.gcmi, 'tra', speye(size(dat,1)));
 
 % check the validity of the design
 if strcmp(cfg.gcmi.method,'cd_model') || strcmp(cfg.gcmi.method,'cd_mixture')
@@ -33,7 +33,7 @@ if strcmp(cfg.gcmi.method,'cd_model') || strcmp(cfg.gcmi.method,'cd_mixture')
   Y = design(cfg.ivar, :)';
   % number of classes
   Ym = max(Y);
-  if ~all(ismember(Y, 1:Ym));
+  if ~all(ismember(Y, 1:Ym))
     error('ft_statfun_gcmi: the design vector is ill-specified');
   end
   Y = Y-1; % 0-based
@@ -56,7 +56,7 @@ if cfg.preconditionflag
   end
   
   if cfg.gcmi.complex
-    tra = speye(size(dat,1));
+    tra = speye(size(dat,1)); % for now, this overrules the user-specification
     switch cfg.gcmi.complex
       case 'complex'
         % tease apart the real/imag parts, treat as 2D-variable
@@ -80,8 +80,8 @@ if cfg.preconditionflag
         error(sprintf('ft_statfun_gcmi: unsupported value \"%s\" for gcmi.complex',complex));
     end
   else
-    % no multivariate or other transforms
-    tra = speye(size(dat,1));
+    % no multivariate or other transforms, use the user-specified 'tra',
+    % which defaults to identity
   end
   fprintf('performing the copula-transform\n');
   % FIXME here we should deal with NaNs in the data, note that these can be different across rows (althought that is rare), which prevents the possibility of doing the transform in a single call.
