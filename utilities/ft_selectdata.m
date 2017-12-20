@@ -100,8 +100,11 @@ dtype = ft_datatype(varargin{1});
 for i=2:length(varargin)
   % ensure that all subsequent inputs are of the same type
   ok = ft_datatype(varargin{i}, dtype);
-  if ~ok, error('input data should be of the same datatype'); end
+  if ~ok, ft_error('input data should be of the same datatype'); end
 end
+
+% this only works with certain data types, it is not meant for descriptive fields such as elec, grad, opto, layout, etc.
+assert(~ismember(dtype, {'elec', 'grad', 'opto', 'layout'}), 'invalid input data type "%s"', dtype);
 
 % ensure that the user does not give invalid selection options
 cfg = ft_checkconfig(cfg, 'forbidden', {'foi', 'toi'});
@@ -127,7 +130,7 @@ if strcmp(dtype, 'volume') || strcmp(dtype, 'segmentation')
   end
   dtype = 'source';
 else
-  % check that the data is according to the latest fieldtrip representation
+  % check that the data is according to the latest FieldTrip representation
   for i=1:length(varargin)
     varargin{i} = ft_checkdata(varargin{i});
   end
@@ -156,7 +159,7 @@ cfg.channel = ft_getopt(cfg, 'channel', 'all', 1);
 cfg.trials  = ft_getopt(cfg, 'trials',  'all', 1);
 
 if length(varargin)>1 && ~isequal(cfg.trials, 'all')
-  error('it is ambiguous to make a subselection of trials while at the same time concatenating multiple data structures')
+  ft_error('it is ambiguous to make a subselection of trials while at the same time concatenating multiple data structures')
 end
 
 cfg.frequency = ft_getopt(cfg, 'frequency', 'all', 1);
@@ -174,7 +177,7 @@ datfield  = setdiff(datfield, {'label' 'labelcmb'}); % these fields will be used
 datfield  = setdiff(datfield, {'dim'});              % not used for selection, also not treated as data field
 xtrafield =  {'cfg' 'hdr' 'fsample' 'fsampleorig' 'grad' 'elec' 'opto' 'transform' 'unit' 'topolabel'}; % these fields will not be touched in any way by the code
 datfield  = setdiff(datfield, xtrafield);
-orgdim1   = datfield(~cellfun(@isempty, regexp(datfield, 'label$'))&cellfun(@isempty, regexp(datfield, '^csd'))); % xxxlabel, with the exception of csdlabel
+orgdim1   = datfield(~cellfun(@isempty, regexp(datfield, 'label$')) & cellfun(@isempty, regexp(datfield, '^csd'))); % xxxlabel, with the exception of csdlabel
 datfield  = setdiff(datfield, orgdim1);
 datfield  = datfield(:)';
 orgdim1   = datfield(~cellfun(@isempty, regexp(datfield, 'dimord$'))); % xxxdimord
@@ -214,12 +217,12 @@ end
 dimtok = unique(dimtok);
 
 hasspike   = any(ismember(dimtok, 'spike'));
-haspos     = any(ismember(dimtok, {'pos', '{pos}'}));
-haschan    = any(ismember(dimtok, {'chan', '{chan}'}));
+haspos     = any(ismember(dimtok, {'pos' '{pos}'}));
+haschan    = any(ismember(dimtok, {'chan' '{chan}'}));
 haschancmb = any(ismember(dimtok, 'chancmb'));
 hasfreq    = any(ismember(dimtok, 'freq'));
 hastime    = any(ismember(dimtok, 'time'));
-hasrpt     = any(ismember(dimtok, {'rpt', 'subj'}));
+hasrpt     = any(ismember(dimtok, {'rpt' 'subj' '{rpt}'}));
 hasrpttap  = any(ismember(dimtok, 'rpttap'));
 
 if hasspike
@@ -281,7 +284,7 @@ if ~keeptimedim,    assert(avgovertime,    'removing a dimension is only possibl
 if ~keeprptdim,     assert(avgoverrpt,     'removing a dimension is only possible when averaging'); end
 
 if strcmp(cfg.select, 'union') && (avgoverpos || avgoverchan || avgoverchancmb || avgoverfreq || avgovertime || avgoverrpt)
-  error('cfg.select ''union'' in combination with averaging across one of the dimensions is not possible');
+  ft_error('cfg.select ''union'' in combination with averaging across one of the dimensions is not possible');
 end
 
 % trim the selection to all inputs, rpt and rpttap are dealt with later
@@ -374,6 +377,19 @@ for i=1:numel(varargin)
       keepdim(strcmp(dimtok, 'subj'))   = false;
     end
     
+    % update the sampleinfo, if possible, and needed
+    if strcmp(datfield{j}, 'sampleinfo') && ~isequal(cfg.latency, 'all')
+      if iscell(seltime{i}) && numel(seltime{i})==size(varargin{i}.sampleinfo,1)
+        for k = 1:numel(seltime{i})   
+          varargin{i}.sampleinfo(k,:) = varargin{i}.sampleinfo(k,1) - 1 + seltime{i}{k}([1 end]);
+        end
+      elseif ~iscell(seltime{i})
+        nrpt       = size(varargin{i}.sampleinfo,1);
+        seltime{i} = seltime{i}(:)';
+        varargin{i}.sampleinfo = varargin{i}.sampleinfo(:,[1 1]) - 1 + repmat(seltime{i}([1 end]),nrpt,1);
+      end
+    end
+    
     varargin{i}.(datfield{j}) = squeezedim(varargin{i}.(datfield{j}), ~keepdim);
     
   end % for datfield
@@ -403,7 +419,7 @@ if avgoverrpt
   keepfield = setdiff(keepfield, {'cumsumcnt' 'cumtapcnt' 'trialinfo' 'sampleinfo'});
 end
 
-if avgovertime || ~isequal(cfg.latency, 'all')
+if avgovertime
   % these are invalid after averaging or making a latency selection
   keepfield = setdiff(keepfield, {'sampleinfo'});
 end
@@ -450,8 +466,8 @@ varargout = varargin;
 ft_postamble debug              % this clears the onCleanup function used for debugging in case of an error
 ft_postamble trackconfig        % this converts the config object back into a struct and can report on the unused fields
 ft_postamble provenance         % this records the time and memory at the end of the function, prints them on screen and adds this information together with the function name and MATLAB version etc. to the output cfg
-% ft_postamble previous varargin  % this copies the datain.cfg structure into the cfg.previous field. You can also use it for multiple inputs, or for "varargin"
-% ft_postamble history varargout  % this adds the local cfg structure to the output data structure, i.e. dataout.cfg = cfg
+ft_postamble previous varargin  % this copies the datain.cfg structure into the cfg.previous field. You can also use it for multiple inputs, or for "varargin"
+ft_postamble history varargout  % this adds the local cfg structure to the output data structure, i.e. dataout.cfg = cfg
 
 % note that the cfg.previous thingy does not work with the postamble,
 % because the postamble puts the cfgs of all input arguments in the (first)
@@ -557,7 +573,7 @@ switch selmode
         case 6
           data.(datfield)(:,:,:,:,:,sel) = tmp(:,:,:,:,:,selindx(sel));
         otherwise
-          error('unsupported dimension (%d) for making a selection for %s', seldim, datfield);
+          ft_error('unsupported dimension (%d) for making a selection for %s', seldim, datfield);
       end
     end
     
@@ -598,14 +614,14 @@ elseif numel(selchan)>1  && any(~isfinite(selchan))
   data.label = tmp;
 else
   % this should never happen
-  error('cannot figure out how to select channels');
+  ft_error('cannot figure out how to select channels');
 end
 end % function makeselection_chan
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function data = makeselection_chancmb(data, selchancmb, avgoverchancmb)
 if isempty(selchancmb)
-  error('no channel combinations were selected');
+  ft_error('no channel combinations were selected');
 elseif avgoverchancmb && all(isnan(selchancmb))
   % naming the channel combinations becomes ambiguous, but should not
   % suggest that the mean was computed prior to combining
@@ -641,7 +657,7 @@ elseif numel(selchancmb)>1  && any(~isfinite(selchancmb))
   data.labelcmb = tmp;
 else
   % this should never happen
-  error('cannot figure out how to select channelcombinations');
+  ft_error('cannot figure out how to select channelcombinations');
 end
 end % function makeselection_chancmb
 
@@ -668,6 +684,7 @@ for k = 1:ndata
   end
   label      = union(label, selchannel);
 end
+label = label(:);   % ensure column array
 
 % this call to match_str ensures that that labels are always in the
 % order of the first input argument see bug_2917, but also temporarily keep
@@ -691,7 +708,7 @@ switch selmode
   case 'union'
     % don't do a subselection
   otherwise
-    error('invalid value for cfg.select');
+    ft_error('invalid value for cfg.select');
 end % switch
 
 ok = false(size(indx,1),1);
@@ -707,7 +724,7 @@ end
 for k = 1:ndata
   % do a sanity check on double occurrences
   if numel(unique(indx(isfinite(indx(:,k)),k)))<sum(isfinite(indx(:,k)))
-    error('the selection of channels across input arguments leads to double occurrences');
+    ft_error('the selection of channels across input arguments leads to double occurrences');
   end
   chanindx{k} = indx(:,k);
 end
@@ -771,10 +788,10 @@ else
       
     case 'union'
       % FIXME this is not yet implemented
-      error('union of channel combination is not yet supported');
+      ft_error('union of channel combination is not yet supported');
       
     otherwise
-      error('invalid value for cfg.select');
+      ft_error('invalid value for cfg.select');
   end % switch
   
   
@@ -822,7 +839,7 @@ if ischar(cfg.latency)
     case 'poststim'
       cfg.latency = [0 max(trialend)];
     otherwise
-      error('incorrect specification of cfg.latency');
+      ft_error('incorrect specification of cfg.latency');
   end % switch
 end
 
@@ -851,7 +868,7 @@ function [timeindx, cfg] = getselection_time(cfg, varargin)
 % cfg.latency = [beg end]
 
 if ft_datatype(varargin{1}, 'spike')
-  error('latency selection in spike data is not supported')
+  ft_error('latency selection in spike data is not supported')
 end
 
 selmode  = varargin{end};
@@ -910,7 +927,7 @@ switch selmode
   case 'union'
     % don't do a subselection
   otherwise
-    error('invalid value for cfg.select');
+    ft_error('invalid value for cfg.select');
 end
 
 % Note that cfg.toilim handling has been removed, as it was renamed to cfg.latency
@@ -925,7 +942,7 @@ if ischar(cfg.latency)
     case 'poststim'
       cfg.latency = [0 max(alltimevec)];
     otherwise
-      error('incorrect specification of cfg.latency');
+      ft_error('incorrect specification of cfg.latency');
   end % switch
 end
 
@@ -956,7 +973,7 @@ elseif numel(cfg.latency)==2
   mintime = min(alltimevec);
   maxtime = max(alltimevec);
   if all(cfg.latency<mintime) || all(cfg.latency>maxtime)
-    error('the selected time range falls outside the time axis in the data');
+    ft_error('the selected time range falls outside the time axis in the data');
   end
   tbeg = nearest(alltimevec, cfg.latency(1), false, false);
   tend = nearest(alltimevec, cfg.latency(2), false, false);
@@ -970,7 +987,7 @@ elseif size(cfg.latency,2)==2
   % this may be used for specification of the computation, not for data selection
   
 else
-  error('incorrect specification of cfg.latency');
+  ft_error('incorrect specification of cfg.latency');
 end
 
 for k = 1:numel(alltimecell)
@@ -1031,7 +1048,7 @@ switch selmode
   case 'union'
     % don't do a subselection
   otherwise
-    error('invalid value for cfg.select');
+    ft_error('invalid value for cfg.select');
 end
 
 if isfield(cfg, 'frequency')
@@ -1051,7 +1068,7 @@ if isfield(cfg, 'frequency')
     elseif strcmp(cfg.frequency, 'zeromax')
       cfg.frequency = [0 max(freqaxis)];
     else
-      error('incorrect specification of cfg.frequency');
+      ft_error('incorrect specification of cfg.frequency');
     end
   end
   
@@ -1082,7 +1099,7 @@ if isfield(cfg, 'frequency')
     minfreq = min(freqaxis);
     maxfreq = max(freqaxis);
     if all(cfg.frequency<minfreq) || all(cfg.frequency>maxfreq)
-      error('the selected range falls outside the frequency axis in the data');
+      ft_error('the selected range falls outside the frequency axis in the data');
     end
     fbeg = nearest(freqaxis, cfg.frequency(1), false, false);
     fend = nearest(freqaxis, cfg.frequency(2), false, false);
@@ -1096,7 +1113,7 @@ if isfield(cfg, 'frequency')
     % this may be used for specification of the computation, not for data selection
     
   else
-    error('incorrect specification of cfg.frequency');
+    ft_error('incorrect specification of cfg.frequency');
   end
 end % if cfg.frequency
 
@@ -1125,6 +1142,7 @@ if isequal(cfg.trials, 'all')
   rpttapindx = nan; % the nan return value specifies that no selection was specified
   
 elseif isempty(rptdim)
+  % FIXME should [] not mean that none of the trials is to be selected?
   rptindx    = nan; % the nan return value specifies that no selection was specified
   rpttapindx = nan; % the nan return value specifies that no selection was specified
   
@@ -1172,13 +1190,13 @@ data    = varargin(1:ndata);
 for i=1:ndata
   if ~isequal(varargin{i}.pos, varargin{1}.pos)
     % FIXME it would be possible here to make a selection based on intersect or union
-    error('not yet implemented');
+    ft_error('not yet implemented');
   end
 end
 
 if strcmp(cfg.select, 'union')
   % FIXME it would be possible here to make a selection based on intersect or union
-  error('not yet implemented');
+  ft_error('not yet implemented');
 end
 
 for i=1:ndata
@@ -1258,7 +1276,7 @@ if iscell(x)
         case 6
           x{i} = x{i}(:,:,:,:,selindx);
         otherwise
-          error('unsupported dimension (%d) for making a selection', seldim);
+          ft_error('unsupported dimension (%d) for making a selection', seldim);
       end % switch
     end % for
   end
@@ -1283,7 +1301,7 @@ else
     case 6
       x = x(:,:,:,:,:,selindx);
     otherwise
-      error('unsupported dimension (%d) for making a selection', seldim);
+      ft_error('unsupported dimension (%d) for making a selection', seldim);
   end
 end
 end % function cellmatselect

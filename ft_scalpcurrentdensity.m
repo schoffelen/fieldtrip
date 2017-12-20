@@ -140,7 +140,7 @@ switch cfg.method
       else
         cfg.degree = 32;
       end
-    end;
+    end
   otherwise
     cfg = ft_checkconfig(cfg); % perform a simple consistency check
 end
@@ -149,10 +149,10 @@ end
 dtype = ft_datatype(data);
 
 % check if the input data is valid for this function
-data = ft_checkdata(data, 'datatype', 'raw', 'feedback', 'yes', 'iseeg','yes','ismeg',[]);
+data = ft_checkdata(data, 'datatype', 'raw', 'feedback', 'yes','ismeg',[]);
 
 % select trials of interest
-tmpcfg = keepfields(cfg, 'trials');
+tmpcfg = keepfields(cfg, {'trials', 'showcallinfo'});
 data   = ft_selectdata(tmpcfg, data);
 % restore the provenance information
 [cfg, data] = rollback_provenance(cfg, data);
@@ -236,12 +236,12 @@ elseif strcmp(cfg.method, 'hjorth')
   elec = ft_apply_montage(elec, montage);
 
 else
-  error('unknown method for SCD computation');
+  ft_error('unknown method for SCD computation');
 end
 
 if strcmp(cfg.method, 'spline') || strcmp(cfg.method, 'finite')
   % correct the units
-  warning('trying to correct the units, assuming uV and mm');
+  ft_warning('trying to correct the units, assuming uV and mm');
   for trlop=1:Ntrials
     % The surface laplacian is proportional to potential divided by squared distance which means that, if
     % - input potential is in uV, which is 10^6 too large

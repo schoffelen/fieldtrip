@@ -170,16 +170,21 @@ cfg.mri          = ft_getopt(cfg, 'mri',        []);
 cfg.outline      = ft_getopt(cfg, 'outline',    []); % default is handled below
 cfg.mask         = ft_getopt(cfg, 'mask',       []); % default is handled below
 
-if isempty(cfg.skipscale) && ischar(cfg.layout) && any(strcmp(cfg.layout, {'ordered', 'vertical', 'horizontal', 'butterfly', 'circular', '1column', '2column', '3column', '4column', '5column', '6column', '7column', '8column', '9column', '1row', '2row', '3row', '4row', '5row', '6row', '7row', '8row', '9row'}))
-  cfg.skipscale = 'yes'; 
-else
-  cfg.skipscale = 'no';
+if isempty(cfg.skipscale)
+  if ischar(cfg.layout) && any(strcmp(cfg.layout, {'ordered', 'vertical', 'horizontal', 'butterfly', 'circular', '1column', '2column', '3column', '4column', '5column', '6column', '7column', '8column', '9column', '1row', '2row', '3row', '4row', '5row', '6row', '7row', '8row', '9row'}))
+    cfg.skipscale = 'yes';
+  else
+    cfg.skipscale = 'no';
+  end
 end
 
-if isempty(cfg.skipcomnt) && ischar(cfg.layout) && any(strcmp(cfg.layout, {'ordered', 'vertical', 'horizontal', 'butterfly', 'circular', '1column', '2column', '3column', '4column', '5column', '6column', '7column', '8column', '9column', '1row', '2row', '3row', '4row', '5row', '6row', '7row', '8row', '9row'}))
-  cfg.skipcomnt = 'yes'; 
-else
-  cfg.skipcomnt = 'no';
+
+if isempty(cfg.skipcomnt)
+  if ischar(cfg.layout) && any(strcmp(cfg.layout, {'ordered', 'vertical', 'horizontal', 'butterfly', 'circular', '1column', '2column', '3column', '4column', '5column', '6column', '7column', '8column', '9column', '1row', '2row', '3row', '4row', '5row', '6row', '7row', '8row', '9row'}))
+    cfg.skipcomnt = 'yes';
+  else
+    cfg.skipcomnt = 'no';
+  end
 end
 
 if isempty(cfg.outline)
@@ -208,14 +213,14 @@ end
 
 % headshape/mri are mutually exclusive
 if ~isempty(cfg.headshape) && ~isempty(cfg.mri)
-  error('cfg.headshape and cfg.mri are mutually exclusive, please use only one of the two')
+  ft_error('cfg.headshape and cfg.mri are mutually exclusive, please use only one of the two')
 end
 % cfg.viewpoint can only be used together with cfg.projection = 'orthographic'
 if ~isempty(cfg.viewpoint) && ~isequal(cfg.projection, 'orthographic')
-  error('cfg.viewpoint can only used in the case of orthographic projection')
+  ft_error('cfg.viewpoint can only used in the case of orthographic projection')
 end
 if ~isempty(cfg.viewpoint) && ~isempty(cfg.rotate)
-  error('cfg.viewpoint and cfg.rotate are mutually exclusive, please use only one of the two')
+  ft_error('cfg.viewpoint and cfg.rotate are mutually exclusive, please use only one of the two')
 end
 
 % update the selection of channels according to the data
@@ -282,7 +287,7 @@ elseif isequal(cfg.layout, 'circular')
     rho = 2.*pi.*rho(1:end-1);
   else
     if numel(rho) ~= nchan
-      error('the number of elements in the polar angle vector should be equal to the number of channels');
+      ft_error('the number of elements in the polar angle vector should be equal to the number of channels');
     end
     
     % convert to radians
@@ -512,7 +517,7 @@ elseif ischar(cfg.layout)
     
     fprintf('reading layout from file %s\n', cfg.layout);
     if ~exist(cfg.layout, 'file')
-      error('the specified layout file %s was not found', cfg.layout);
+      ft_error('the specified layout file %s was not found', cfg.layout);
     end
     tmp = load(cfg.layout, 'lay*');
     if isfield(tmp, 'layout')
@@ -520,7 +525,7 @@ elseif ischar(cfg.layout)
     elseif isfield(tmp, 'lay')
       layout = tmp.lay;
     else
-      error('mat file does not contain a layout');
+      ft_error('mat file does not contain a layout');
     end
     
   elseif ft_filetype(cfg.layout, 'layout')
@@ -529,37 +534,23 @@ elseif ischar(cfg.layout)
       fprintf('reading layout from file %s\n', cfg.layout);
       layout = readlay(cfg.layout);
     else
-      ft_warning(sprintf('layout file %s was not found on your path, attempting to use a similarly named .mat file instead',cfg.layout));
-      cfg.layout = [cfg.layout(1:end-3) 'mat'];
+      [p, f, x] = fileparts(cfg.layout);
+      ft_warning('the file "%s" was not found on your path, attempting "%s" instead', cfg.layout, fullfile(p, [f '.mat']));
+      cfg.layout = fullfile(p, [f '.mat']);
       layout = ft_prepare_layout(cfg);
       return;
     end
     
   elseif ~ft_filetype(cfg.layout, 'layout')
     % assume that cfg.layout is an electrode file
-    fprintf('creating layout from electrode file %s\n', cfg.layout);
+    fprintf('creating layout from sensor description file %s\n', cfg.layout);
     sens = ft_read_sens(cfg.layout);
     layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
   end
   
-elseif ischar(cfg.elecfile)
-  fprintf('creating layout from electrode file %s\n', cfg.elecfile);
-  sens = ft_read_sens(cfg.elecfile);
-  layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
-  
-elseif ~isempty(cfg.elec) && isstruct(cfg.elec)
-  fprintf('creating layout from cfg.elec\n');
-  sens = ft_datatype_sens(cfg.elec);
-  layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
-  
-elseif isfield(data, 'elec') && isstruct(data.elec)
-  fprintf('creating layout from data.elec\n');
-  sens = ft_datatype_sens(data.elec);
-  layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
-  
 elseif ischar(cfg.gradfile)
   fprintf('creating layout from gradiometer file %s\n', cfg.gradfile);
-  sens = ft_read_sens(cfg.gradfile);
+  sens = ft_read_sens(cfg.gradfile, 'senstype', 'meg');
   layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
   
 elseif ~isempty(cfg.grad) && isstruct(cfg.grad)
@@ -572,9 +563,24 @@ elseif isfield(data, 'grad') && isstruct(data.grad)
   sens = ft_datatype_sens(data.grad);
   layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
   
+elseif ischar(cfg.elecfile)
+  fprintf('creating layout from electrode file %s\n', cfg.elecfile);
+  sens = ft_read_sens(cfg.elecfile, 'senstype', 'eeg');
+  layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
+  
+elseif ~isempty(cfg.elec) && isstruct(cfg.elec)
+  fprintf('creating layout from cfg.elec\n');
+  sens = ft_datatype_sens(cfg.elec);
+  layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
+  
+elseif isfield(data, 'elec') && isstruct(data.elec)
+  fprintf('creating layout from data.elec\n');
+  sens = ft_datatype_sens(data.elec);
+  layout = sens2lay(sens, cfg.rotate, cfg.projection, cfg.style, cfg.overlap, cfg.viewpoint, cfg.boxchannel);
+  
 elseif ischar(cfg.optofile)
   fprintf('creating layout from optode file %s\n', cfg.optofile);
-  sens = ft_read_sens(cfg.optofile);
+  sens = ft_read_sens(cfg.optofile, 'senstype', 'nirs');
   if (hasdata)
     layout = opto2lay(sens, data.label);
   else
@@ -588,7 +594,7 @@ elseif ~isempty(cfg.opto) && isstruct(cfg.opto)
     layout = opto2lay(sens, data.label);
   else
     layout = opto2lay(sens, sens.label);
-  end;
+  end
   
 elseif isfield(data, 'opto') && isstruct(data.opto)
   fprintf('creating layout from data.opto\n');
@@ -597,7 +603,7 @@ elseif isfield(data, 'opto') && isstruct(data.opto)
     layout = opto2lay(sens, data.label);
   else
     layout = opto2lay(sens, sens.label);
-  end;
+  end
   
 elseif (~isempty(cfg.image) || ~isempty(cfg.mesh)) && isempty(cfg.layout)
   % deal with image file
@@ -687,7 +693,7 @@ elseif (~isempty(cfg.image) || ~isempty(cfg.mesh)) && isempty(cfg.layout)
         again = 0;
         
       otherwise
-        warning('invalid button (%d)', k);
+        ft_warning('invalid button (%d)', k);
     end
   end
   
@@ -782,7 +788,7 @@ elseif (~isempty(cfg.image) || ~isempty(cfg.mesh)) && isempty(cfg.layout)
         again = 0;
         
       otherwise
-        warning('invalid button (%d)', k);
+        ft_warning('invalid button (%d)', k);
     end
   end % while again
   % remember this set of polygons as the mask
@@ -880,7 +886,7 @@ elseif (~isempty(cfg.image) || ~isempty(cfg.mesh)) && isempty(cfg.layout)
         again = 0;
         
       otherwise
-        warning('invalid button (%d)', k);
+        ft_warning('invalid button (%d)', k);
     end
   end % while again
   % remember this set of polygons as the outline
@@ -912,7 +918,7 @@ elseif (~isempty(cfg.image) || ~isempty(cfg.mesh)) && isempty(cfg.layout)
   fprintf('\n');
   
 else
-  error('no layout detected, please specify cfg.layout')
+  ft_error('no layout detected, please specify cfg.layout')
 end
 
 % make the subset as specified in cfg.channel
@@ -1068,8 +1074,11 @@ elseif any(strcmp('SCALE', layout.label)) && skipscale
   layout.height(sel) = [];
 end
 
-% the labels should be represented in a column vector (see bug 1909 -roevdmei)
+% these should be represented in a column vector (see bug 1909 -roevdmei)
 layout.label  = layout.label(:);
+% the width and height are not present in a 3D layout as used in SPM
+if isfield(layout, 'width'),  layout.width  = layout.width(:);  end
+if isfield(layout, 'height'), layout.height = layout.height(:); end
 
 % to plot the layout for debugging, you can use this code snippet
 if strcmp(cfg.feedback, 'yes') && ~strcmpi(cfg.style, '3d')
@@ -1094,7 +1103,7 @@ if ~isempty(cfg.output) && ~strcmpi(cfg.style, '3d')
 elseif ~isempty(cfg.output) && strcmpi(cfg.style, '3d')
   % the layout file format does not support 3D positions, furthermore for
   % a 3D layout the width and height are currently set to NaN
-  error('writing a 3D layout to an output file is not supported');
+  ft_error('writing a 3D layout to an output file is not supported');
 end
 
 % do the general cleanup and bookkeeping at the end of the function
@@ -1108,7 +1117,7 @@ ft_postamble history layout
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function layout = readlay(filename)
 if ~exist(filename, 'file')
-  error('could not open layout file "%s"', filename);
+  ft_error('could not open layout file "%s"', filename);
 end
 fid=fopen(filename);
 lay_string=fread(fid,inf,'char=>char')';
@@ -1257,11 +1266,11 @@ else
       prj = shiftxy(prj', 0.2)';
       prjForDist = prj(boxchansel,:);
     elseif strcmp(overlap, 'no')
-      error('the specified sensor configuration has many overlapping channels, you specified not to allow that');
+      ft_error('the specified sensor configuration has many overlapping channels, you specified not to allow that');
     elseif strcmp(overlap, 'keep')
       prjForDist = unique(prj(boxchansel,:), 'rows');
     else
-      error('unknown value for cfg.overlap = ''%s''', overlap);
+      ft_error('unknown value for cfg.overlap = ''%s''', overlap);
     end
   end
   
@@ -1379,19 +1388,18 @@ xy = [x; y];
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION to obtain XY pos from XYZ pos as orthographic projections depending on
-% the viewpoint and coordsys. See also ELPROJ
+% the viewpoint and coordsys. See also ELPROJ and COORDSYS2LABEL
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function pos = getorthoviewpos(pos, coordsys, viewpoint)
+% see also 
 
 if size(pos,2)~=3
-  error('XYZ coordinates are required to obtain the orthographic projections based on a viewpoint')
+  ft_error('XYZ coordinates are required to obtain the orthographic projections based on a viewpoint')
 end
-
-transmat = [];
 
 % create view(az,el) transformation matrix
 switch coordsys
-  case {'tal','mni','spm','neuromag','itab'}
+  case {'ras' 'itab' 'neuromag' 'acpc' 'spm' 'mni' 'tal'}
     switch viewpoint
       case 'left'
         transmat = viewmtx(-90, 0);
@@ -1405,8 +1413,10 @@ switch coordsys
         transmat = viewmtx(0, 0);
       case 'anterior'
         transmat = viewmtx(180, 0);
+      otherwise
+        ft_error('orthographic projection using viewpoint "%s" is not supported', viewpoint)
     end % switch viewpoint
-  case {'ctf','4d','bti'}
+  case {'als' 'ctf' '4d' 'bti'}
     switch viewpoint
       case 'left'
         transmat = viewmtx(180, 0);
@@ -1420,12 +1430,13 @@ switch coordsys
         transmat = viewmtx(-90, 0);
       case 'anterior'
         transmat = viewmtx(90, 0);
+      otherwise
+        ft_error('orthographic projection using viewpoint "%s" is not supported', viewpoint)
     end % switch viewpoint
+  otherwise
+    ft_error('orthographic projection using coordinate system "%s" is not supported', coordsys)
 end % switch coordsys
 
-if isempty(transmat)
-  error('orthographic projection using viewpoint "%s" is not supported for the "%s" coordinate system', viewpoint, coordsys)
-end
 
 % extract xy
 pos      = ft_warp_apply(transmat, pos, 'homogenous');
@@ -1493,7 +1504,7 @@ if ~isempty(cfg.headshape)
   elseif isstruct(cfg.headshape)
     outlbase = cfg.headshape;
   else
-    error('incorrect specification of cfg.headshape')
+    ft_error('incorrect specification of cfg.headshape')
   end
 elseif ~isempty(cfg.mri)
   if ischar(cfg.mri) && exist(cfg.mri, 'file')
@@ -1502,7 +1513,7 @@ elseif ~isempty(cfg.mri)
   elseif ft_datatype(cfg.mri, 'volume')
     outlbase = cfg.mri;
   else
-    error('incorrect specification of cfg.mri')
+    ft_error('incorrect specification of cfg.mri')
   end
   % create mesh from anatomical field, this will be used as headshape below
   cfgpm = [];

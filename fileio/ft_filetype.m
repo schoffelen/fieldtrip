@@ -310,6 +310,18 @@ elseif filetype_check_extension(filename, '.eve') && exist(fullfile(p, [f '.fif'
   type = 'neuromag_eve'; % these are being used by Tristan Technologies for the BabySQUID system
   manufacturer = 'Neuromag';
   content = 'events';
+elseif filetype_check_extension(filename, '.log') && filetype_check_header(filename, '*** This is Elekta Neuromag MaxFilter', 61)
+  type = 'neuromag_maxfilterlog'; 
+  manufacturer = 'Neuromag';
+  content = 'MaxFilter log information';
+elseif filetype_check_extension(filename, '.iso') && filetype_check_header(filename, char([0 0 0 100]))
+  type = 'neuromag_iso'; 
+  manufacturer = 'Neuromag';
+  content = 'Isotrack digitizer points';
+elseif strcmp(filename, 'sss_cal.dat')
+  type = 'neuromag_cal'; 
+  manufacturer = 'Neuromag';
+  content = 'Fine calibration';
   
   % known Yokogawa file types
 elseif filetype_check_extension(filename, '.ave') || filetype_check_extension(filename, '.sqd')
@@ -398,13 +410,6 @@ elseif filetype_check_extension(filename, '.el.ascii') && filetype_check_ascii(f
   type = '4d_el_ascii';
   manufacturer = '4D/BTi';
   content = 'electrode positions';
-elseif length(f)<=4 && filetype_check_dir(p, 'config')%&& ~isempty(p) && exist(fullfile(p,'config'), 'file') %&& exist(fullfile(p,'hs_file'), 'file')
-  % this could be a 4D file with non-standard/processed name
-  % it will be detected as a 4D file when there is a config file in the
-  % same directory as the specified file
-  type = '4d';
-  manufacturer = '4D/BTi';
-  content = '';
   
   % known EEProbe file types
 elseif filetype_check_extension(filename, '.cnt') && (filetype_check_header(filename, 'RIFF') || filetype_check_header(filename, 'RF64'))
@@ -460,7 +465,7 @@ elseif filetype_check_extension(filename, '.mri')
   type = 'asa_mri';
   manufacturer = 'ASA';
   content = 'MRI image header';
-elseif filetype_check_extension(filename, '.iso')
+elseif filetype_check_extension(filename, '.iso') && ~filetype_check_header(filename, char([0 0 0 100]))
   type = 'asa_iso';
   manufacturer = 'ASA';
   content = 'MRI image data';
@@ -1170,6 +1175,10 @@ elseif filetype_check_extension(filename, '.mat') && filetype_check_header(filen
   type = 'ced_spike6mat';
   manufacturer = 'Cambridge Electronic Design Limited';
   content = 'electrophysiological data';
+elseif filetype_check_extension(filename, '.mat') && filetype_check_header(filename, 'MATLAB') && filetype_check_neuroomega_mat(filename)
+  type = 'neuroomega_mat';
+  manufacturer = 'Alpha Omega';
+  content = 'electrophysiological data';
 elseif filetype_check_extension(filename, '.mat') && filetype_check_header(filename, 'MATLAB')
   type = 'matlab';
   manufacturer = 'MATLAB';
@@ -1306,9 +1315,9 @@ end
 
 if strcmp(type, 'unknown')
   if ~exist(filename, 'file') && ~exist(filename, 'dir')
-    warning('file or directory "%s" does not exist, could not determine fileformat', filename);
+    ft_warning('file or directory "%s" does not exist, could not determine fileformat', filename);
   else
-    warning('could not determine filetype of %s', filename);
+    ft_warning('could not determine filetype of %s', filename);
   end
 end
 
@@ -1416,6 +1425,12 @@ else
   d = dir;
 end
 res = any(strcmp(filename,{d.name}));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SUBFUNCTION that checks for NeuroOmega mat file
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function res = filetype_check_neuroomega_mat(filename)
+res=~isempty(regexp(filename,'[RL]T[1-5]D[-]{0,1}\d+\.\d+([+-]M){0,1}F\d+\.mat','once'));
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION that checks whether the directory is neuralynx_cds
