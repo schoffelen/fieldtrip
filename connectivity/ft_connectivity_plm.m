@@ -13,12 +13,7 @@ function [p] = ft_connectivity_plm(input, varargin)
 %			across which to integrate
 %   fsample     =       sampling frequency, needed to convert bandwidth to number of bins
 %
-% The output p contains the phase slope index, v is a variance estimate
-% which only can be computed if the data contains leave-one-out samples,
-% and n is the number of repetitions in the input data. If the phase slope
-% index is positive, then the first chan (1st dim) becomes more lagged (or
-% less leading) with higher frequency, indicating that it is causally
-% driven by the second channel (2nd dim)
+% The output p contains the phase linearity measurement in the [0, 1] interval.
 %
 % See also FT_CONNECTIVITYANALYSIS
 
