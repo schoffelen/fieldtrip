@@ -14,6 +14,7 @@ function [p] = ft_connectivity_plm(input, varargin)
 %   fsample     =       sampling frequency, needed to convert bandwidth to number of bins
 %
 % The output p contains the phase linearity measurement in the [0, 1] interval.
+% The output p is organized as a 3D matrix of nchan x  nchan x ntime dimensions.
 %
 % See also FT_CONNECTIVITYANALYSIS
 
@@ -39,7 +40,7 @@ function [p] = ft_connectivity_plm(input, varargin)
 
 % the sequence of steps is as follows:
 %  - Hilbert transformation
-%  - convolve with complex conjugate
+%  - multiply with complex conjugate
 %  - fft
 %  - convert bandwidth parameter to number of bins
 %  - integrate over bandwidth
@@ -55,5 +56,23 @@ for k = 1:numel(input)
   input{k} = hilbert(input{k}')';
 end
 
-% the rest continues here
+nchan=size(input{1},1);
+trial_length=size(input{1},2);
+ph_min=0.1;        % Eps of Eq.(17) of the manuscript
+f=(fs/trial_length)*(0:(trial_length-1));
+f_integr=(abs(f)<B) | (abs(f-fs)<B);
+p=zeros(nchan, nchan, ntime);
+
+for ktime=1:ntime
+    for kchan1=1:(nchan-1)
+        for kchan2=(kchan1+1):nchan
+            temp=fft(input{ktime}(kchan1,:).*conj(input{ktime}(kchan2,:)));    % NOTE BY FB: The inner cycle can be vectorized
+            temp(1)=temp(1).*(abs(angle(temp(1)))>ph_min);  % Volume conduction suppression
+            temp=(abs(temp)).^2;
+            p_temp=sum(temp(f_integr))./sum(temp);
+            p(kchan1, kchan2, ktime)=p_temp;
+            p(kchan2, kchan1, ktime)=p_temp;
+        end
+    end
+end
 
