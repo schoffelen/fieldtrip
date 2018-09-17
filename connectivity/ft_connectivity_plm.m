@@ -1,7 +1,10 @@
 function [p] = ft_connectivity_plm(input, varargin)
 
 % FT_CONNECTIVITY_PLM computes the phase linearity measurement from a cell
-% array of time-domain data, where each cell is an epoch
+% array of time-domain data, where each cell is an epoch. This function implements
+% the metric described in Baselice et al. "Phase Linearity Measurement:
+% a novel index for brain functional connectivity", IEEE Transactions
+% on Medical Imaging, 2018. Please reference the paper in case of use.
 %
 % Use as
 %   [p] = ft_connectivity_plm(input, ...)
