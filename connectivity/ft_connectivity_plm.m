@@ -52,6 +52,7 @@ function [p] = ft_connectivity_plm(input, varargin)
 nsmp = cellfun('size', input, 2);
 assert(all(nsmp==nsmp(1)), 'currently there is no support for input, where the trials are of different length'); 
 
+ntime=numel(input);
 for k = 1:numel(input)
   input{k} = hilbert(input{k}')';
 end
