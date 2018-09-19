@@ -9,7 +9,8 @@ function [p] = ft_connectivity_plm(input, varargin)
 % Use as
 %   [p] = ft_connectivity_plm(input, ...)
 %
-% The input data input should be organized as a cell-array of nchan x ntime signals
+% The input data input should be organized as a cell-array, one element for each epoch.
+% Each cell element should be a matrix of of nchan x nsamples values.
 %
 % Additional optional input arguments come as key-value pairs:
 %   bandwidth	=	scalar, half-bandwidth parameter: the frequency range
@@ -17,7 +18,7 @@ function [p] = ft_connectivity_plm(input, varargin)
 %   fsample     =       sampling frequency, needed to convert bandwidth to number of bins
 %
 % The output p contains the phase linearity measurement in the [0, 1] interval.
-% The output p is organized as a 3D matrix of nchan x  nchan x ntime dimensions.
+% The output p is organized as a 3D matrix of nchan x  nchan x nepoch dimensions.
 %
 % See also FT_CONNECTIVITYANALYSIS
 
@@ -45,7 +46,7 @@ function [p] = ft_connectivity_plm(input, varargin)
 %  - Hilbert transformation
 %  - multiply with complex conjugate
 %  - fft
-%  - convert bandwidth parameter to number of bins
+%  - remove volume conduction component
 %  - integrate over bandwidth
 
 
