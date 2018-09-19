@@ -53,6 +53,16 @@ function [p] = ft_connectivity_plm(input, varargin)
 % NOTE BY JM: if the user inputs data with different length trials, the fft per trial is going 
 % to have different frequency resolutions, which is not good. Better to throw an error in that 
 % case.
+fs = ft_getopt(varargin, 'fsample');
+B = ft_getopt(varargin, 'bandwidth');
+if isempty(fs)
+error('sampling rate is not defined');
+end
+if isempty(B)
+warning('bandwidth parameter is not defined, assumed 1Hz');
+B=1;
+end
+
 nsmp = cellfun('size', input, 2);
 assert(all(nsmp==nsmp(1)), 'currently there is no support for input, where the trials are of different length'); 
 
