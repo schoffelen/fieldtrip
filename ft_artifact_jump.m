@@ -10,9 +10,13 @@ function [cfg, artifact] = ft_artifact_jump(cfg, data)
 % or
 %   cfg.headerfile  = string with the filename
 %   cfg.datafile    = string with the filename
+% and optionally
+%   cfg.headerformat
+%   cfg.dataformat
 %
 % Alternatively you can use it as
 %   [cfg, artifact] = ft_artifact_jump(cfg, data)
+% where the input data is a structure as obtained from FT_PREPROCESSING.
 %
 % In both cases the configuration should also contain
 %   cfg.trl        = structure that defines the data segments of interest. See FT_DEFINETRIAL
@@ -100,7 +104,7 @@ if isfield(cfg.artfctdef.jump, 'artifact')
 end
 
 if ~strcmp(cfg.artfctdef.jump.method, 'zvalue')
-  error(sprintf('jump artifact detection only works with cfg.method=''zvalue'''));
+  ft_error('jump artifact detection only works with cfg.method=''zvalue''');
 end
 
 % for backward compatibility
@@ -137,7 +141,7 @@ if ~hasdata
   [tmpcfg, artifact] = ft_artifact_zvalue(tmpcfg);
 else
   tmpcfg.artfctdef.zvalue.fltpadding = 0;
-  warning('trlpadding and fltpadding are set to zero to avoid filter problems with NaN, see bug3193 for details');
+  ft_warning('trlpadding and fltpadding are set to zero to avoid filter problems with NaN, see bug3193 for details');
   [tmpcfg, artifact] = ft_artifact_zvalue(tmpcfg, data);
 end
 cfg.artfctdef.jump = tmpcfg.artfctdef.zvalue;

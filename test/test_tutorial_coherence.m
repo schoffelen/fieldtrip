@@ -208,7 +208,7 @@ cfg           = [];
 cfg.method    = 'dics';
 cfg.refchan   = 'EMGlft';
 cfg.frequency = 18;
-cfg.hdmfile   = 'SubjectCMC.hdm';
+cfg.headmodel = 'SubjectCMC.hdm';
 cfg.inwardshift     = 1;
 cfg.grid.resolution = 1;
 cfg.grid.unit       = 'cm';
@@ -250,7 +250,7 @@ trl = [];
 for j = 1:length(trig)-1
   trg1 = trig(j);
   trg2 = trig(j+1);
-  if trg1<=100 & trg2==2080,
+  if trg1<=100 && trg2==2080
     trlok      = [[indx(j)+1:1200:indx(j+1)-1200]' [indx(j)+1200:1200:indx(j+1)]'];
     trlok(:,3) = [0:-1200:-1200*(size(trlok,1)-1)]';
     trl        = [trl; trlok];

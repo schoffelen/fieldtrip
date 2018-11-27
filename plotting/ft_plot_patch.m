@@ -37,7 +37,7 @@ function [varargout] = ft_plot_patch(hdat, vdat, varargin)
 %   vdat = [vdat vdat(end:-1:1)+1];
 %   ft_plot_patch(hdat, vdat)
 %
-% See also FT_PLOT_VECTOR
+% See also FT_PLOT_VECTOR, PATCH, PLOT
 
 % Copyrights (C) 2015, Roemer van der Meij
 %
@@ -110,7 +110,7 @@ if ischar(hlim)
       hlim = max(abs(hdat));
       hlim = [-hlim hlim];
     otherwise
-      error('unsupported option for hlim')
+      ft_error('unsupported option for hlim')
   end % switch
 end % if ischar
 
@@ -122,7 +122,7 @@ if ischar(vlim)
       vlim = max(abs(vdat(:)));
       vlim = [-vlim vlim];
     otherwise
-      error('unsupported option for vlim')
+      ft_error('unsupported option for vlim')
   end % switch
 end % if ischar
 
@@ -222,7 +222,7 @@ if ~isempty(axis) && ~strcmp(axis, 'no')
       xaxis = false;
       yaxis = true;
     otherwise
-      error('invalid specification of the "axis" option')
+      ft_error('invalid specification of the "axis" option')
   end
   
   if xaxis

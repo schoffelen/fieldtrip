@@ -7,9 +7,10 @@ function output = ft_connectivity_mutualinformation(input, varargin)
 % FT_CONNECTIVITYANALYSIS. As a standalone function, it could be used as
 % follows:
 %
-% mi = ft_connectivity_mutualinformation(data, varargin)
+% Use as
+%   mi = ft_connectivity_mutualinformation(data, ...)
 %
-% The input data is a Nchan x Nobservations matrix.
+% The input data should be a Nchan x Nobservations matrix.
 %
 % Additional input arguments come as key-value pairs:
 %   method     = string, 'ibtb' (default), or 'gcmi'.
@@ -25,6 +26,8 @@ function output = ft_connectivity_mutualinformation(input, varargin)
 %   refindx    = scalar value or 'all'. The channel that is used as 'reference channel'.
 %
 % The output contains the estimated mutual information between all channels and the reference channel(s).
+%
+% See also FT_CONNECTIVITYANALYSIS
 
 % Copyright (C) 2016 Donders Institute, Jan-Mathijs Schoffelen
 %

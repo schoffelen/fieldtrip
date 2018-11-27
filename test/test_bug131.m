@@ -5,11 +5,6 @@ function test_bug131
 
 % TEST ft_prepare_leadfield
 
-% use FieldTrip defaults instead of personal defaults
-global ft_default;
-ft_default = [];
-ft_default.feedback = 'no';
-
 % test the issue related to the scaling of the leadfields in the different implementations
 
 [pnt, tri] = icosahedron162;
@@ -45,14 +40,14 @@ grid.outside = [];
 
 % create leadfield with single sphere
 cfg = [];
-cfg.vol = vol;
+cfg.headmodel = vol;
 cfg.grid = grid;
 cfg.grad = grad;
 grid1 = ft_prepare_leadfield(cfg);
 
 % create leadfield with singleshell
 cfg = [];
-cfg.vol = vol2;
+cfg.headmodel = vol2;
 cfg.grid = grid;
 cfg.grad = grad;
 grid2 = ft_prepare_leadfield(cfg);

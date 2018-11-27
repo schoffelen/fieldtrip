@@ -1,3 +1,10 @@
+/* 
+ * Copyright (C) 2008, Robert Oostenveld & Christian Hesse
+ * F.C. Donders Centre for Cognitive Neuroimaging, Radboud University Nijmegen,
+ * Kapittelweg 29, 6525 EN Nijmegen, The Netherlands
+ *
+ */
+
 #ifndef PLATFORM_INCLUDES_H
 #define PLATFORM_INCLUDES_H
 
@@ -10,6 +17,7 @@
     #include <sys/socket.h>
     #include <sys/un.h>
     #include <netinet/in.h>
+    #include <netinet/tcp.h>
     #include <arpa/inet.h>
     #include <netdb.h>
     #include <unistd.h>
@@ -27,6 +35,7 @@
     #include <sys/socket.h>
     #include <sys/un.h>
     #include <netinet/in.h>
+    #include <netinet/tcp.h>
     #include <arpa/inet.h>
     #include <netdb.h>
     #include <unistd.h>
@@ -45,8 +54,8 @@
     #define strcasecmp(a,b) (strcmpi(a,b))
 
 #elif defined (PLATFORM_WIN64) && defined (COMPILER_MINGW_W64)
-    #include <windows.h>
     #include <winsock2.h>
+    #include <windows.h>
     #include <sys/time.h>
     #include <stdint.h>
     #include "win32/fsync.h"
@@ -82,8 +91,8 @@
     #define strcasecmp(a,b) (strcmpi(a,b))
 
 #elif defined (PLATFORM_WIN32) && defined (COMPILER_MINGW_W64)
-    #include <windows.h>
     #include <winsock2.h>
+    #include <windows.h>
     #include <sys/time.h>
     #include <stdint.h>
     #include "win32/fsync.h"
@@ -93,8 +102,8 @@
     #define bcopy(src, dest, len)   (memmove(dest, src, len))
 
 #elif defined (PLATFORM_WIN32) && defined (COMPILER_MINGW_ORG)
-    #include <windows.h>
     #include <winsock2.h>
+    #include <windows.h>
     #include <sys/time.h>
     #include <stdint.h>
     #include "win32/clock_gettime.h"
@@ -109,6 +118,7 @@
     #include <sys/socket.h>
     #include <sys/un.h>
     #include <netinet/in.h>
+    #include <netinet/tcp.h>
     #include <netinet/ip.h>
     #include <unistd.h>  /* for close() */
     #include <netdb.h>

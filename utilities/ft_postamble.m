@@ -45,11 +45,10 @@ function ft_postamble(cmd, varargin)
 %#function ft_postamble_history
 %#function ft_postamble_savevar
 %#function ft_postamble_randomseed
-
-global ft_default
+%#function ft_postamble_hastoolbox
 
 % this is a trick to pass the input arguments into the ft_postamble_xxx script
-ft_default.postamble = varargin;
+assignin('caller', 'iW1aenge_postamble', varargin);
 
 full_cmd=['ft_postamble_' cmd];
 cmd_exists=false;
@@ -80,12 +79,8 @@ if ~cmd_exists
   % XXX earlier versions would not do anything if ~cmd_exists,
   % but fail silently (without raising an error or warning).
   % Should that behavior be kept?
-  error('Could not run %s - does not seem to exist', full_cmd);
+  ft_error('Could not run %s - does not seem to exist', full_cmd);
 end
 
 evalin('caller', full_cmd);
 
-if isfield(ft_default, 'postamble')
-  % the postamble field should not remain in the ft_default structure
-  ft_default = rmfield(ft_default, 'postamble');
-end

@@ -64,13 +64,14 @@ cfg.hpfreq       = 10;
 cfg.rectify      = 'yes';
 emg = ft_preprocessing(cfg);
 
-% see http://bugzilla.fcdonders.nl/show_bug.cgi?id=1397
+% see http://bugzilla.fieldtriptoolbox.org/show_bug.cgi?id=1397
 % the reported problem in fieldtrip-20120302 was
 % 
 % ??? Error using ==> ft_appenddata at 266
 % there is a difference in the time axes of the input data
 
 data = ft_appenddata([], meg, emg);
+assert(numel(data.label)==153);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -97,7 +98,7 @@ trl = [];
 for j = 1:length(trig)-1
   trg1 = trig(j);
   trg2 = trig(j+1);
-  if trg1<=100 & trg2==2080,
+  if trg1<=100 && trg2==2080
     trlok      = [[indx(j)+1:1200:indx(j+1)-1200]' [indx(j)+1200:1200:indx(j+1)]'];
     trlok(:,3) = [0:-1200:-1200*(size(trlok,1)-1)]';
     trl        = [trl; trlok];

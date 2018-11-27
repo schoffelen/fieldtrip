@@ -86,16 +86,6 @@ freqhigh = ft_checkdata(freqhigh, 'datatype', 'freq', 'feedback', 'yes');
 % but nevertheless did not support between-channel CFC computations
 cfg = ft_checkconfig(cfg, 'forbidden', {'chanlow', 'chanhigh'});
 
-% this function only support CFC computations within channels, not between channels
-if isfield(cfg, 'chanlow') && isfield(cfg, 'chanhigh')
-  if isequal(cfg.chanlow, cfg.chanhigh)
-    cfg.channel = cfg.chanlow;
-    cfg = removefields(cfg, 'chanlow', 'chanhigh');
-  else
-    error('cross-channel CFC not supported, the channel selection should be the same for low and high frequencies')
-  end
-end
-
 cfg.channel    = ft_getopt(cfg, 'channel',  'all');
 cfg.freqlow    = ft_getopt(cfg, 'freqlow',  'all');
 cfg.freqhigh   = ft_getopt(cfg, 'freqhigh', 'all');
@@ -110,7 +100,7 @@ tmpcfg.channel   = cfg.channel;
 tmpcfg.frequency = cfg.freqlow;
 freqlow = ft_selectdata(tmpcfg, freqlow);
 [tmpcfg, freqlow] = rollback_provenance(cfg, freqlow);
-try, cfg.chanlow = tmpcfg.channel;   end
+try, cfg.channel = tmpcfg.channel;   end
 try, cfg.freqlow = tmpcfg.frequency; end
 
 % make selection of frequencies and channels
@@ -119,7 +109,7 @@ tmpcfg.channel   = cfg.channel;
 tmpcfg.frequency = cfg.freqhigh;
 freqhigh = ft_selectdata(tmpcfg, freqhigh);
 [tmpcfg, freqhigh] = rollback_provenance(cfg, freqhigh);
-try, cfg.chanhigh = tmpcfg.channel;   end
+try, cfg.channel  = tmpcfg.channel;   end
 try, cfg.freqhigh = tmpcfg.frequency; end
 
 LF = freqlow.freq;
@@ -191,7 +181,7 @@ switch cfg.method
   
   case 'coh'
     [ntrial,nchan,nlf,nhf] = size(cfcdata);
-    if strcmp(cfg.keeptrials,'no')
+    if strcmp(cfg.keeptrials, 'no')
       crsspctrm = reshape(abs(mean(cfcdata,1)), [nchan, nlf, nhf]);
       dimord = 'chan_freqlow_freqhigh' ;
     else
@@ -201,7 +191,7 @@ switch cfg.method
     
   case 'plv'
     [ntrial,nchan,nlf,nhf] = size(cfcdata);
-    if strcmp(cfg.keeptrials,'no')
+    if strcmp(cfg.keeptrials, 'no')
       crsspctrm = reshape(abs(mean(cfcdata,1)), [nchan, nlf, nhf]);
       dimord = 'chan_freqlow_freqhigh' ;
     else
@@ -211,7 +201,7 @@ switch cfg.method
     
   case  'mvl'
     [ntrial,nchan,nlf,nhf] = size(cfcdata);
-    if strcmp(cfg.keeptrials,'no')
+    if strcmp(cfg.keeptrials, 'no')
       crsspctrm = reshape(abs(mean(cfcdata,1)), [nchan, nlf, nhf]);
       dimord = 'chan_freqlow_freqhigh' ;
     else
@@ -222,7 +212,7 @@ switch cfg.method
   case  'mi'
     [ntrial,nchan,nlf,nhf,nbin] = size(cfcdata);
     
-    if strcmp(cfg.keeptrials,'yes')
+    if strcmp(cfg.keeptrials, 'yes')
       dimord = 'rpt_chan_freqlow_freqhigh' ;
       crsspctrm = zeros(ntrial,nchan,nlf,nhf);
       for k =1:ntrial
@@ -235,7 +225,7 @@ switch cfg.method
             for j=1:nhf
               P = squeeze(pac(i,j,:))/ nansum(pac(i,j,:));  % normalized distribution
               % KL distance
-              mi(i,j) = nansum(P.* (log(P)-log2(Q)))/log(nbin);
+              mi(i,j) = nansum(P.* log2(P./Q))./log2(nbin);
             end
           end
           crsspctrm(k,n,:,:) = mi;
@@ -257,7 +247,7 @@ switch cfg.method
           for j=1:nhf
             P = squeeze(pac(i,j,:))/ nansum(pac(i,j,:));  % normalized distribution
             % KL distance
-            mi(i,j) = nansum(P.* (log(P)-log2(Q)))/log(nbin);
+            mi(i,j) = nansum(P.* log2(P./Q))./log2(nbin);
           end
         end
         crsspctrm(k,:,:) = mi;
@@ -267,7 +257,7 @@ switch cfg.method
     
 end % switch method for actual computation
 
-crossfreq.label      = cfg.chanlow;
+crossfreq.label      = cfg.channel;
 crossfreq.crsspctrm  = crsspctrm;
 crossfreq.dimord     = dimord;
 crossfreq.freqlow    = LF;
@@ -362,7 +352,7 @@ pacdata = zeros(size(LFsigtemp,1),size(HFsigtemp,1),nbin);
 
 Ang  = angle(LFsigtemp);
 Amp  = abs(HFsigtemp);
-[~,bin] = histc(Ang, linspace(-pi,pi,nbin));  % binned low frequency phase
+[dum,bin] = histc(Ang, linspace(-pi,pi,nbin));  % binned low frequency phase
 binamp = zeros (size(HFsigtemp,1),nbin);      % binned amplitude
 
 for i = 1:size(Ang,1)

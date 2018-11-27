@@ -24,10 +24,12 @@ function hs = ft_plot_sens(sens, varargin)
 %   'coilsize'        = diameter or edge length of the coils (default is automatic)
 % The following options apply to EEG electrodes
 %   'elec'            = true/false, plot each individual electrode (default = false)
+%   'orientation'     = true/false, plot a line for the orientation of each electrode (default = false)
 %   'elecshape'       = 'point', 'circle', 'square', or 'sphere' (default is automatic)
 %   'elecsize'        = diameter of the electrodes (default is automatic)
 % The following options apply to NIRS optodes
 %   'opto'            = true/false, plot each individual optode (default = false)
+%   'orientation'     = true/false, plot a line for the orientation of each optode (default = false)
 %   'optoshape'       = 'point', 'circle', 'square', or 'sphere' (default is automatic)
 %   'optosize'        = diameter of the optodes (default is automatic)
 %
@@ -47,7 +49,7 @@ function hs = ft_plot_sens(sens, varargin)
 %   figure; ft_plot_sens(sens, 'coilshape', 'circle', 'coil', true, 'chantype', 'meggrad')
 %   figure; ft_plot_sens(sens, 'coilshape', 'circle', 'coil', false, 'orientation', true)
 %
-% See also FT_READ_SENS, FT_DATATYPE_SENS, FT_PLOT_HEADSHAPE, FT_PREPARE_VOL_SENS
+% See also FT_READ_SENS, FT_PLOT_HEADSHAPE, FT_PLOT_VOL
 
 % Copyright (C) 2009-2016, Robert Oostenveld
 %
@@ -69,7 +71,7 @@ function hs = ft_plot_sens(sens, varargin)
 %
 % $Id$
 
-ws = warning('on', 'MATLAB:divideByZero');
+ws = ft_warning('on', 'MATLAB:divideByZero');
 
 % ensure that the sensor description is up-to-date
 sens = ft_datatype_sens(sens);
@@ -114,7 +116,7 @@ elseif ft_senstype(sens, 'nirs')
   sensshape  = optoshape;
   sensize    = optosize;
 else
-  warning('unknown sensor array description');
+  ft_warning('unknown sensor array description');
   individual = false;
   sensshape  = [];
   sensize    = [];
@@ -141,15 +143,15 @@ end
 
 if ~isempty(ft_getopt(varargin, 'coilorientation'))
   % for backward compatibility, added on 17 Aug 2016
-  warning('the coilorientation option is deprecated, please use orientation instead')
+  ft_warning('the coilorientation option is deprecated, please use "orientation" instead')
   orientation = ft_getopt(varargin, 'coilorientation');
 end
 
 if ~isempty(ft_getopt(varargin, 'coildiameter'))
   % for backward compatibility, added on 6 July 2016
   % the sensize is the diameter for a circle, or the edge length for a square
-  warning('the coildiameter option is deprecated, please use coilsize instead')
-  sensize = ft_getopt(varargin, 'sensize');
+  ft_warning('the coildiameter option is deprecated, please use "coilsize" instead')
+  sensize = ft_getopt(varargin, 'coildiameter');
 end
 
 if ~isempty(unit)
@@ -254,47 +256,21 @@ if ~holdflag
   hold on
 end
 
-if istrue(orientation)
-  if istrue(individual)
-    if isfield(sens, 'coilori')
-      pos = sens.coilpos;
-      ori = sens.coilori;
-    elseif isfield(sens, 'elecori')
-      pos = sens.elecpos;
-      ori = sens.elecori;
-    else
-      pos = [];
-      ori = [];
-    end
-  else
-    if isfield(sens, 'chanori')
-      pos = sens.chanpos;
-      ori = sens.chanori;
-    else
-      pos = [];
-      ori = [];
-    end
-  end
-  scale = ft_scalingfactor('mm', sens.unit)*20; % draw a line segment of 20 mm
-  for i=1:size(pos,1)
-    x = [pos(i,1) pos(i,1)+ori(i,1)*scale];
-    y = [pos(i,2) pos(i,2)+ori(i,2)*scale];
-    z = [pos(i,3) pos(i,3)+ori(i,3)*scale];
-    line(x, y, z)
-  end
-end
-
 if istrue(individual)
-  % simply get the position of all individual coils or electrodes
+  % get the position of all individual coils, electrodes or optodes
   if isfield(sens, 'coilpos')
     pos = sens.coilpos;
   elseif isfield(sens, 'elecpos')
     pos = sens.elecpos;
+  elseif isfield(sens, 'optopos')
+    pos = sens.optopos;
   end
   if isfield(sens, 'coilori')
     ori = sens.coilori;
   elseif isfield(sens, 'elecori')
     ori = sens.elecori;
+  elseif isfield(sens, 'optoori')
+    ori = sens.optoori;
   else
     ori = [];
   end
@@ -316,17 +292,57 @@ else
   
 end % if istrue(individual)
 
+if isempty(ori)
+  % determine the orientation by fitting a sphere to the positions
+  % this should be reasonable for scalp electrodes or optodes with complete coverage
+  try
+    tmp = pos(~any(isnan(pos), 2),:); % remove rows that contain a nan
+    center = fitsphere(tmp);
+  catch
+    center = [nan nan nan];
+  end
+  for i=1:size(pos,1)
+    ori(i,:) = pos(i,:) - center;
+    ori(i,:) = ori(i,:)/norm(ori(i,:));
+  end
+end
+
+if istrue(orientation)
+  scale = ft_scalingfactor('mm', sens.unit)*20; % draw a line segment of 20 mm
+  for i=1:size(pos,1)
+    x = [pos(i,1) pos(i,1)+ori(i,1)*scale];
+    y = [pos(i,2) pos(i,2)+ori(i,2)*scale];
+    z = [pos(i,3) pos(i,3)+ori(i,3)*scale];
+    line(x, y, z)
+  end
+end
+
 switch sensshape
   case 'point'
     if ~isempty(style)
-      hs = plot3(pos(:,1), pos(:,2), pos(:,3), style, 'MarkerSize', sensize);
+      % the style can include the color and/or the shape of the marker
+      % check whether the marker shape is specified
+      possible = {'+', 'o', '*', '.', 'x', 'v', '^', '>', '<', 'square', 'diamond', 'pentagram', 'hexagram'};
+      specified = false(size(possible));
+      for i=1:numel(possible)
+        specified(i) = ~isempty(strfind(style, possible{i}));
+      end
+      if any(specified)
+        % the marker shape is specified in the style option
+        hs = plot3(pos(:,1), pos(:,2), pos(:,3), style, 'MarkerSize', sensize);
+      else
+        % the marker shape is not specified in the style option, use the marker option instead and assume that the style option represents the color
+        hs = plot3(pos(:,1), pos(:,2), pos(:,3), 'Marker', marker, 'MarkerSize', sensize, 'Color', style, 'Linestyle', 'none');
+      end
     else
-      hs = plot3(pos(:,1), pos(:,2), pos(:,3), 'Marker', marker, 'MarkerSize', sensize, 'Color', facecolor, 'Linestyle', 'none');
+      % the style is not specified, use facecolor for the marker
+      hs = scatter3(pos(:,1), pos(:,2), pos(:,3), sensize.^2, facecolor, marker);
     end
+    
   case 'circle'
     plotcoil(pos, ori, [], sensize, sensshape, 'edgecolor', edgecolor, 'facecolor', facecolor, 'edgealpha', edgealpha, 'facealpha', facealpha);
+
   case 'square'
-    
     % determine the rotation-around-the-axis of each sensor
     % only applicable for neuromag planar gradiometers
     if ft_senstype(sens, 'neuromag')
@@ -343,22 +359,26 @@ switch sensshape
         elseif (numel([poscoil negcoil]))==1
           % magnetometer
         elseif numel(poscoil)>1 || numel(negcoil)>1
-          error('cannot work with balanced gradiometer definition')
+          ft_error('cannot work with balanced gradiometer definition')
         end
       end
+    else
+      chandir = [];
     end
     
     plotcoil(pos, ori, chandir, sensize, sensshape, 'edgecolor', edgecolor, 'facecolor', facecolor, 'edgealpha', edgealpha, 'facealpha', facealpha);
+
   case 'sphere'
-    [xsp, ysp, zsp] = sphere(20);
+    [xsp, ysp, zsp] = sphere(100);
     rsp = sensize/2; % convert coilsensize from diameter to radius
     hold on
-    for i=1:length(pos)
+    for i=1:size(pos,1)
       hs = surf(rsp*xsp+pos(i,1), rsp*ysp+pos(i,2), rsp*zsp+pos(i,3));
       set(hs, 'EdgeColor', edgecolor, 'FaceColor', facecolor, 'EdgeAlpha', edgealpha, 'FaceAlpha', facealpha);
     end
+    
   otherwise
-    error('incorrect shape');
+    ft_error('incorrect shape');
 end % switch
 
 if ~isempty(label) && ~any(strcmp(label, {'off', 'no'}))
@@ -371,7 +391,7 @@ if ~isempty(label) && ~any(strcmp(label, {'off', 'no'}))
       case {'number' 'numbers'}
         str = num2str(i);
       otherwise
-        error('unsupported value for option ''label''');
+        ft_error('unsupported value for option ''label''');
     end % switch
     if isfield(sens, 'chanori')
       % shift the labels along the channel orientation, which is presumably orthogonal to the scalp
@@ -398,7 +418,7 @@ if ~holdflag
   hold off
 end
 
-warning(ws); % revert to original state
+ft_warning(ws); % revert to original state
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION all optional inputs are passed to ft_plot_mesh

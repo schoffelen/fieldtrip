@@ -40,7 +40,7 @@ endif
 ifeq "$(PLATFORM)" "x86_64-pc-cygwin"
 	BINDIR   = $(FIELDTRIP)/realtime/bin/win64
 	INCPATH += -I../../external/portaudio
-	LDLIBS   = -lm -lws2_32 -static $(BINDIR)/PortAudio.dll
+	LDLIBS  += -lm -lws2_32 -static $(BINDIR)/PortAudio.dll
 	SUFFIX   = .exe
 	RM       = rm -f
 	fixpath  = $1
@@ -115,6 +115,9 @@ all: $(TARGETS)
 
 %.o: %.cc
 	$(CXX) $(INCPATH) $(CXXFLAGS) -c $<
+
+%.o: %.c
+	$(CC) $(INCPATH) $(CFLAGS) -c $<
 
 $(BINDIR)/%$(SUFFIX): %.o $(CPPOBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBPATH) $(LDLIBS)
