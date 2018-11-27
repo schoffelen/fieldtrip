@@ -24,7 +24,7 @@ function ft_plot_vol(headmodel, varargin)
 %   headmodel.o = [0 0 40];
 %   figure, ft_plot_vol(headmodel)
 %
-% See also FT_PREPARE_HEADMODEL FT_PLOT_MESH
+% See also FT_PREPARE_HEADMODEL, FT_PLOT_MESH, FT_PLOT_SENS
 
 % Copyright (C) 2009, Cristiano Micheli
 %
@@ -46,7 +46,7 @@ function ft_plot_vol(headmodel, varargin)
 %
 % $Id$
 
-ws = warning('on', 'MATLAB:divideByZero');
+ws = ft_warning('on', 'MATLAB:divideByZero');
 
 % ensure that the volume conduction model description is up-to-date (Dec 2012)
 headmodel = ft_datatype_headmodel(headmodel);
@@ -157,4 +157,4 @@ for i=1:length(bnd)
 end
 
 % revert to original state
-warning(ws);
+ft_warning(ws);

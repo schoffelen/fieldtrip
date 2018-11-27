@@ -4,7 +4,7 @@ function [comp] = ft_componentanalysis(cfg, data)
 % spatio-temporal decompositions of EEG or MEG data. This function computes
 % the topography and timecourses of the components. The output of this
 % function can be further analyzed with FT_TIMELOCKANALYSIS or
-% FT_FREQNANALYSIS.
+% FT_FREQANALYSIS.
 %
 % Use as
 %   [comp] = ft_componentanalysis(cfg, data)
@@ -281,7 +281,6 @@ end
 % select trials of interest
 tmpcfg = keepfields(cfg, {'trials', 'channel', 'showcallinfo'});
 data   = ft_selectdata(tmpcfg, data);
-
 % restore the provenance information
 [cfg, data] = rollback_provenance(cfg, data);
 
@@ -307,7 +306,7 @@ end
 
 if strcmp(cfg.demean, 'yes')
   % optionally perform baseline correction on each trial
-  fprintf('baseline correcting data \n');
+  ft_info('baseline correcting data \n');
   for trial=1:Ntrials
     data.trial{trial} = ft_preproc_baselinecorrect(data.trial{trial});
   end
@@ -321,31 +320,31 @@ if strcmp(cfg.doscale, 'yes')
   scale = norm((tmp*tmp')./size(tmp,2)); clear tmp;
   scale = sqrt(scale);
   if scale ~= 0
-    fprintf('scaling data with 1 over %f\n', scale);
+    ft_info('scaling data with 1 over %f\n', scale);
     for trial=1:Ntrials
       data.trial{trial} = data.trial{trial} ./ scale;
     end
   else
-    fprintf('no scaling applied, since factor is 0\n');
+    ft_info('no scaling applied, since factor is 0\n');
   end
 else
-  fprintf('no scaling applied to the data\n');
+  ft_info('no scaling applied to the data\n');
 end
 
 if strcmp(cfg.method, 'sobi')
   
   % concatenate all the data into a 3D matrix respectively 2D (sobi)
-  fprintf('concatenating data');
+  ft_info('concatenating data');
   Nsamples = Nsamples(1);
   dat = zeros(Ntrials, Nchans, Nsamples);
   % all trials should have an equal number of samples
   % and it is assumed that the time axes of all trials are aligned
   for trial=1:Ntrials
-    fprintf('.');
+    ft_info('.');
     dat(trial,:,:) = data.trial{trial};
   end
-  fprintf('\n');
-  fprintf('concatenated data matrix size %dx%dx%d\n', size(dat,1), size(dat,2), size(dat,3));
+  ft_info('\n');
+  ft_info('concatenated data matrix size %dx%dx%d\n', size(dat,1), size(dat,2), size(dat,3));
   if Ntrials == 1
     dummy = 0;
     [dat, dummy] = shiftdim(dat);
@@ -366,39 +365,39 @@ elseif strcmp(cfg.method, 'csp')
   end
   dat1 = cat(2, data.trial{sel1});
   dat2 = cat(2, data.trial{sel2});
-  fprintf('concatenated data matrix size for class 1 is %dx%d\n', size(dat1,1), size(dat1,2));
-  fprintf('concatenated data matrix size for class 2 is %dx%d\n', size(dat2,1), size(dat2,2));
+  ft_info('concatenated data matrix size for class 1 is %dx%d\n', size(dat1,1), size(dat1,2));
+  ft_info('concatenated data matrix size for class 2 is %dx%d\n', size(dat2,1), size(dat2,2));
   
 elseif ~strcmp(cfg.method, 'predetermined unmixing matrix') && strcmp(cfg.cellmode, 'no')
   % concatenate all the data into a 2D matrix unless we already have an
   % unmixing matrix or unless the user request it otherwise
-  fprintf('concatenating data');
+  ft_info('concatenating data');
   
   dat = zeros(Nchans, sum(Nsamples));
   for trial=1:Ntrials
-    fprintf('.');
+    ft_info('.');
     begsample = sum(Nsamples(1:(trial-1))) + 1;
     endsample = sum(Nsamples(1:trial));
     dat(:,begsample:endsample) = data.trial{trial};
   end
-  fprintf('\n');
-  fprintf('concatenated data matrix size %dx%d\n', size(dat,1), size(dat,2));
+  ft_info('\n');
+  ft_info('concatenated data matrix size %dx%d\n', size(dat,1), size(dat,2));
   
   hasdatanans = any(~isfinite(dat(:)));
   if hasdatanans
-    fprintf('data contains nans, only using the non-nan samples\n');
+    ft_info('data contains nans, only using the non-nan samples\n');
     finitevals = sum(~isfinite(dat))==0;
     dat        = dat(:,finitevals);
   end
 else
-  fprintf('not concatenating data\n');
+  ft_info('not concatenating data\n');
   dat = data.trial;
   % FIXME cellmode processing is not nan-transparent yet
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % perform the component analysis
-fprintf('starting decomposition using %s\n', cfg.method);
+ft_info('starting decomposition using %s\n', cfg.method);
 switch cfg.method
   
   case 'icasso'
@@ -439,7 +438,7 @@ switch cfg.method
     % do the rest of the icasso related processing
     sR = icassoCluster(sR, 'strategy', 'AL', 'simfcn', 'abscorr', 's2d', 'sim2dis', 'L',cfg.numcomponent);
     sR = icassoProjection(sR, 'cca', 's2d', 'sqrtsim2dis', 'epochs', 75);
-    [Iq, mixing, unmixing, ~, index2centrotypes] = icassoResult(sR,cfg.numcomponent);
+    [Iq, mixing, unmixing, dum, index2centrotypes] = icassoResult(sR,cfg.numcomponent);
     
     % this step is done, because in icassoResult mixing is determined to be
     % pinv(unmixing), which yields strange results. Better take it from the
@@ -484,7 +483,7 @@ switch cfg.method
       % the "catch me" syntax is broken on MATLAB74, this fixes it
       me = lasterror;
       % give a hopefully instructive error message
-      fprintf(['If you get an out-of-memory in fastica here, and you use fastica 2.5, change fastica.m, line 482: \n' ...
+      ft_info(['If you get an out-of-memory in fastica here, and you use fastica 2.5, change fastica.m, line 482: \n' ...
         'from\n' ...
         '  if ~isempty(W)                  %% ORIGINAL VERSION\n' ...
         'to\n' ...
@@ -859,7 +858,7 @@ end
 % apply the linear projection also to the sensor description
 if ~isempty(sensfield)
   if  strcmp(cfg.updatesens, 'yes')
-    fprintf('also applying the unmixing matrix to the %s structure\n', sensfield);
+    ft_info('also applying the unmixing matrix to the %s structure\n', sensfield);
     % construct a montage and apply it to the sensor description
     montage          = [];
     montage.labelold = data.label;
@@ -874,7 +873,7 @@ if ~isempty(sensfield)
       comp.(sensfield) = rmfield(comp.(sensfield), 'type');
     end
   else
-    fprintf('not applying the unmixing matrix to the %s structure\n', sensfield);
+    ft_info('not applying the unmixing matrix to the %s structure\n', sensfield);
     % simply copy it over
     comp.(sensfield) = data.(sensfield);
   end

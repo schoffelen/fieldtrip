@@ -52,6 +52,14 @@ ARRAY+=(private/avgref.m)
 sync ${ARRAY[*]}
 
 ################################################################################
+# bg_rgba2rgb.m
+
+ARRAY=()
+ARRAY+=(plotting/private/bg_rgba2rgb.m)
+ARRAY+=(private/bg_rgba2rgb.m)
+sync ${ARRAY[*]}
+
+################################################################################
 # bounding_mesh.m
 
 ARRAY=()
@@ -412,6 +420,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(external/dipoli/private/find_innermost_boundary.m)
+ARRAY+=(external/openmeeg/private/find_innermost_boundary.m)
 ARRAY+=(forward/private/find_innermost_boundary.m)
 ARRAY+=(inverse/private/find_innermost_boundary.m)
 ARRAY+=(private/find_innermost_boundary.m)
@@ -431,6 +440,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(external/dipoli/private/find_outermost_boundary.m)
+ARRAY+=(external/openmeeg/private/find_outermost_boundary.m)
 ARRAY+=(fileio/private/find_outermost_boundary.m)
 ARRAY+=(forward/private/find_outermost_boundary.m)
 ARRAY+=(private/find_outermost_boundary.m)
@@ -450,6 +460,7 @@ sync ${ARRAY[*]}
 
 ARRAY=()
 ARRAY+=(forward/private/fitsphere.m)
+ARRAY+=(plotting/private/fitsphere.m)
 ARRAY+=(private/fitsphere.m)
 sync ${ARRAY[*]}
 
@@ -1187,7 +1198,7 @@ ARRAY+=(test/private/icosahedron642.m)
 sync ${ARRAY[*]}
 
 ################################################################################
-# ignnorefields.m
+# ignorefields.m
 
 ARRAY=()
 ARRAY+=(private/ignorefields.m)
@@ -1322,6 +1333,30 @@ sync ${ARRAY[*]}
 ARRAY=()
 ARRAY+=(test/private/isalmostequal.m)
 ARRAY+=(private/isalmostequal.m)
+sync ${ARRAY[*]}
+
+################################################################################
+# isfile.m
+
+ARRAY=()
+ARRAY+=(compat/matlablt2017b/isfile.m)
+ARRAY+=(compat/octave/isfile.m)
+sync ${ARRAY[*]}
+
+################################################################################
+# isfolder.m
+
+ARRAY=()
+ARRAY+=(compat/matlablt2017b/isfolder.m)
+ARRAY+=(compat/octave/isfolder.m)
+sync ${ARRAY[*]}
+
+################################################################################
+# ismatch.m
+
+ARRAY=()
+ARRAY+=(private/ismatch.m)
+ARRAY+=(trialfun/private/ismatch.m)
 sync ${ARRAY[*]}
 
 ################################################################################
@@ -2282,6 +2317,7 @@ sync ${ARRAY[*]}
 # normals.m
 
 ARRAY=()
+ARRAY+=(fileio/private/normals.m)
 ARRAY+=(forward/private/normals.m)
 ARRAY+=(private/normals.m)
 ARRAY+=(test/private/normals.m)
@@ -2786,6 +2822,7 @@ sync ${ARRAY[*]}
 ARRAY=()
 ARRAY+=(external/openmeeg/private/refine.m)
 ARRAY+=(plotting/private/refine.m)
+ARRAY+=(fileio/private/refine.m)
 ARRAY+=(private/refine.m)
 ARRAY+=(test/private/refine.m)
 ARRAY+=(utilities/private/refine.m)
