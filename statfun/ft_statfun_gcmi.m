@@ -156,11 +156,18 @@ for k=1:numel(uNvar)
   datmc = datT(:,startidx:endidx);
   datmc = reshape(datmc, [Ntrl uNvarN(k)./uNvar(k) uNvar(k)]);
   if strcmp(cfg.gcmi.method,'cd_model')
-    mi = mi_model_gd_vec(datmc, Y, Ym, true, true);
+    %mi = mi_model_gd_vec(datmc, Y, Ym, true, true);
+    for m = 1:size(datmc,2)
+      mi(m) = mi_model_gd(datmc(:,m), Y, Ym, true, true);
+    end
+
   elseif strcmp(cfg.gcmi.method,'cd_mixture')
     mi = mi_mixture_gd_vec(datmc, Y, Ym);
   elseif strcmp(cfg.gcmi.method,'cc')
     mi = mi_gg_vec(datmc, cY, true, true);
+%     for m = 1:size(datmc,2)
+%       mi(m) = mi_gg(datmc(:,m), cY, true, true);
+%     end
   end
   stat.stat(selcol{k},1) = mi;
 end
