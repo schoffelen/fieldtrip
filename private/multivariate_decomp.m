@@ -154,12 +154,13 @@ switch type
     R = eye(nx+ny);
   case 'qridge'
     rix = eye(nx).*2 + diag(ones(nx-1,1).*-1,1) + diag(ones(nx-1,1).*-1,-1);
-    rix(1)   = 1;
-    rix(end) = 1;
+    rix(1)   = 1; if numel(x)>1, rix(1,2) = -0.5; rix(2,1) = -0.5; end
+    rix(end) = 1; if numel(x)>1, rix(end-1,end) = -0.5; rix(end,end-1) = -0.5; end
     riy = eye(ny).*2 + diag(ones(ny-1,1).*-1,1) + diag(ones(ny-1,1).*-1,-1);
-    riy(1)   = 1;
-    riy(end) = 1;
-    R = blkdiag(rix,riy);
+    riy(1)   = 1; if numel(y)>1, riy(1,2) = -0.5; riy(2,1) = -0.5; end
+    riy(end) = 1; if numel(y)>1, riy(end-1,end) = -0.5; riy(end,end-1) = -0.5; end
+    R(x,x) = rix;
+    R(y,y) = riy;
 end
 R = R*thr;
 

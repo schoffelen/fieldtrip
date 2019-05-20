@@ -147,9 +147,10 @@ else
     case 'dpss'
       if numel(tapsmofrq)==1
         % create a sequence of DPSS tapers, ensure that the input arguments are double precision
-        tap = double_dpss(ndatsample,ndatsample*(tapsmofrq./fsample))';
+        [tap, v] = double_dpss(ndatsample,ndatsample*(tapsmofrq./fsample));
         % remove the last taper because the last slepian taper is always messy
         tap = tap(1:(end-1), :);
+        v   = v(1:(end-1));
         
         % give error/warning about number of tapers
         if isempty(tap)
@@ -357,5 +358,6 @@ previous_tap   = tap;
 % precision this prevents an instability (bug) in the computation of the
 % tapers for MATLAB 6.5 and 7.0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [tap] = double_dpss(a, b, varargin)
-tap = dpss(double(a), double(b), varargin{:});
+function [tap,v] = double_dpss(a, b, varargin)
+[tap,v] = dpss(double(a), double(b), varargin{:});
+tap     = transpose(tap);

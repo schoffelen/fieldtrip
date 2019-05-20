@@ -1,4 +1,4 @@
-function [m] = ft_connectivity_mim(input, varargin)
+function [output] = ft_connectivity_mim(input, varargin)
 
 % FT_CONNECTIVITY_MIM computes the multivariate interaction measure from a
 % data-matrix containing the cross-spectral density. This implements the method
@@ -44,28 +44,35 @@ indices = ft_getopt(varargin, 'indices');
 
 if isempty(indices) && isequal(size(input), [2 2])
   % simply assume two channels
-  indx1 = 1;
-  indx2 = 2;
+  indices = [1 2];
 else
-  % it should be a vector like [1 1 1 2 2 2]
-  indx1 = indices==1;
-  indx2 = indices==2;
+  
 end
 
-cs_aa_re = real(input(indx1,indx1));
-cs_bb_re = real(input(indx2,indx2));
-cs_ab_im = imag(input(indx1,indx2));
+siz = [size(input) 1];
+if siz(1)~=siz(2)
+  error('currently the input is expected to be of size NxNxM');
+end
 
-inv_cs_bb_re = pinv(cs_bb_re);
-inv_cs_aa_re = pinv(cs_aa_re);
-transp_cs_ab_im = transpose(cs_ab_im);
-m = trace(inv_cs_aa_re*cs_ab_im*inv_cs_bb_re*transp_cs_ab_im); % try to speed up by dividing calculation in steps
+uindices = unique(indices(:));
+N = numel(uindices);
+if ~isequal(uindices,(1:N)')
+  error('indices values should range from 1 to the number of channels/voxels');
+end
 
-% taking the mldivide and mrdivide operators doesn't change the results, but speeds up by a factor of 4 over 1000 iterations (on LM Notebook)
-% m = trace(cs_aa_re\cs_ab_im*inv_cs_bb_re*transp_cs_ab_im);
+input_r = real(input);
+input_i = imag(input);
 
-% % % block_a=cs_aa_re\cs_ab_im;
-% % % block_b=cs_bb_re\transpose(cs_ab_im);
-% % % m = trace(block_a*block_b);
-
-% m = trace(cs_aa_re\cs_ab_im*(cs_bb_re\transpose(cs_ab_im)));
+output = zeros([N N siz(3:end)]);
+for k = 1:prod(siz(3:end))
+  for m1 = 1:N
+    for m2 = 1:N
+      indx1 = indices==m1;
+      indx2 = indices==m2;
+      cs_aa_re = input_r(indx1,indx1,k);
+      cs_bb_re = input_r(indx2,indx2,k);
+      cs_ab_im = input_i(indx1,indx2,k);
+      output(m1,m2,k) = trace((cs_aa_re\cs_ab_im/cs_bb_re)*transpose(cs_ab_im));
+    end
+  end
+end
