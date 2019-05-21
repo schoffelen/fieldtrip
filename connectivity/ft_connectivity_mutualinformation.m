@@ -53,6 +53,10 @@ method  = ft_getopt(varargin, 'method',  'ibtb'); % can be gcmi
 refindx = ft_getopt(varargin, 'refindx', 'all', 1);
 lags    = ft_getopt(varargin, 'lags',    0);  % shift of data w.r.t. reference, in samples
 tra     = ft_getopt(varargin, 'tra',     []); % 1/0-matrix for multivariate combination Nnew x Norg, where Norg = size(input,1)
+conditional = istrue(ft_getopt(varargin, 'conditional', false)); % this is only functional if gcmi is the method
+if conditional && ~strcmp(method, 'gcmi')
+  error('conditional mutual information can be only computed with ''gcmi'' as method');
+end
 
 % check whether the combined options work out
 if ~isempty(tra)
@@ -198,25 +202,56 @@ switch method
         
       end1 = beg1+n1-1;
       end2 = beg2+n1-1;
-      
-      for p = 1:numel(refindx)
-        tmprefdata = nan(sum(tra(refindx(p),:)),n);
-        tmprefdata(:, beg1:end1) = input(tra(refindx(p),:), beg2:end2);
+      if ~conditional
+        for p = 1:numel(refindx)
+          tmprefdata = nan(sum(tra(refindx(p),:)),n);
+          tmprefdata(:, beg1:end1) = input(tra(refindx(p),:), beg2:end2);
+          
+          finitevals2 = sum(finitevals,1)&sum(isfinite(tmprefdata),1); % this conservatively takes only the non-nan samples across all input data channels
+          
+          tmpinput    = copnorm(input(:,finitevals2)')';
+          tmprefdata  = copnorm(tmprefdata(:,finitevals2)')';
+          
+          if ~isequal(tra,eye(size(tra,1)))
+            for k = setdiff(1:size(tra,1),refindx(p))
+              output(k,p,m) = mi_gg(tmpinput(tra(k,:),:)',tmprefdata');%, false, true);
+            end
+          else
+            output(:,p,m) = mi_gg_vec(tmpinput(:,:)',tmprefdata',true,true);
+          end
+        end
+      else
+        % condition on the time-lagged version of the target signal
+        target_shifted               = nan(size(input,1),n);
+        target_shifted(:, beg1:end1) = input(:, beg2:end2);
         
-        finitevals2 = sum(finitevals,1)&sum(isfinite(tmprefdata),1); % this conservatively takes only the non-nan samples across all input data channels
+        finitevals2    = sum(finitevals,1)>0&sum(isfinite(target_shifted),1)>0; % this conservatively takes only the non-nan samples across all input data channels
         
-        tmpinput    = copnorm(input(:,finitevals2)')';
-        tmprefdata  = copnorm(tmprefdata(:,finitevals2)')';
-
-        for k = setdiff(1:size(tra,1),refindx(p))
-          output(k,p,m) = mi_gg(tmpinput(tra(k,:),:)',tmprefdata');%, false, true);
+        % the following step is quite expensive computationally, but for
+        % the conditioning all shifted versions of the target signal are
+        % needed anyway
+        target         = copnorm(input(:,finitevals2)');
+        target         = bsxfun(@minus,target,mean(target,1));
+        target_shifted = copnorm(target_shifted(:,finitevals2)');
+        target_shifted = bsxfun(@minus,target_shifted,mean(target_shifted,1));
+        
+        for p = 1:numel(refindx)
+          if ~isequal(tra,eye(size(tra,1)))
+            tmprefdata  = target_shifted(:,tra(refindx(p),:));
+            for k = setdiff(1:size(tra,1),refindx(p))
+              output(k,p,m) = cmi_ggg(target(:,tra(k,:)),tmprefdata,target_shifted(:,tra(k,:)), true, false);
+            end
+          else
+            tmprefdata = target_shifted(:,tra(refindx(p),:));
+            output(:,p,m) = cmi_ggg_vec(target,tmprefdata,target_shifted, true, true);
+          end
         end
       end
     end
   otherwise
 end
 
-if numel(refindx)==1,
+if numel(refindx)==1
   siz    = [size(output) 1];
   output = reshape(output,[siz([1 3])]);
 end
