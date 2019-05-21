@@ -79,6 +79,7 @@ function [hdr] = ft_read_header(filename, varargin)
 %
 % The following NIRS dataformats are supported
 %   BUCN - Birkbeck college, London (*.txt)
+%   Artinis - Artinis Medical Systems B.V. (*.oxy3, *.oxyproj)
 %
 % The following Eyetracker dataformats are supported
 %   EyeLink - SR Research (*.asc)
@@ -810,7 +811,7 @@ switch headerformat
   case 'eep_cnt'
     % check that the required low-level toolbox is available
     ft_hastoolbox('eeprobe', 1);
-    % read the first sample from the continous data, this will also return the header
+    % read the first sample from the continuous data, this will also return the header
     orig = read_eep_cnt(filename, 1, 1);
     hdr.Fs          = orig.rate;
     hdr.nSamples    = orig.nsample;
@@ -1552,7 +1553,7 @@ switch headerformat
     % this is hard-coded for the Jinga-Hi JAGA16 system with 16 channels
     packetsize = (4*2 + 6*2 + 16*43*2); % in bytes
     % read the first packet
-    fid  = fopen(filename, 'r');
+    fid  = fopen_or_error(filename, 'r');
     buf  = fread(fid, packetsize/2, 'uint16');
     fclose(fid);
     
@@ -2277,6 +2278,10 @@ switch headerformat
   case 'artinis_oxy3'
     ft_hastoolbox('artinis', 1);
     hdr = read_artinis_oxy3(filename);
+    
+  case 'artinis_oxyproj'
+    ft_hastoolbox('artinis', 1);
+    hdr = read_oxyproj_header(filename);
     
   case 'plexon_ds'
     hdr = read_plexon_ds(filename);

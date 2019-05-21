@@ -26,6 +26,7 @@ function [shape] = ft_read_headshape(filename, varargin)
 %   'unit'        = string, e.g. 'mm' (default is the native units of the file)
 %   'concatenate' = 'no' or 'yes' (default = 'yes')
 %   'image'       = path to .jpg file
+%   'surface'     = specific surface to be read (only for caret spec files)
 %
 % Supported input file formats include
 %   'matlab'       containing FieldTrip or BrainStorm headshapes or cortical meshes
@@ -56,7 +57,7 @@ function [shape] = ft_read_headshape(filename, varargin)
 %   'brainvisa_mesh'
 %   'brainsuite_dfs'
 %
-% See also FT_READ_VOL, FT_READ_SENS, FT_READ_ATLAS, FT_WRITE_HEADSHAPE
+% See also FT_READ_HEADMODEL, FT_READ_SENS, FT_READ_ATLAS, FT_WRITE_HEADSHAPE
 
 % Copyright (C) 2008-2017 Robert Oostenveld
 %
@@ -85,6 +86,7 @@ coordsys       = ft_getopt(varargin, 'coordsys', 'head');    % for ctf or neurom
 fileformat     = ft_getopt(varargin, 'format');
 unit           = ft_getopt(varargin, 'unit');
 image          = ft_getopt(varargin, 'image', [100, 100 ,100]); % path to .jpeg file
+surface        = ft_getopt(varargin, 'surface');
 
 % Check the input, if filename is a cell-array, call ft_read_headshape recursively and combine the outputs.
 % This is used to read the left and right hemisphere of a Freesurfer cortical segmentation.
@@ -338,6 +340,9 @@ switch fileformat
     
     % check whether there is curvature info etc
     filename    = strrep(filename, '.surf.', '.shape.');
+    filename    = strrep(filename, '.topo.', '.shape.');
+    filename    = strrep(filename, '.coord.', '.shape.');
+
     [p,f,e]     = fileparts(filename);
     tok         = tokenize(f, '.');
     if length(tok)>2
@@ -349,8 +354,9 @@ switch fileformat
     end
     
   case 'caret_spec'
+    [p, f, e] = fileparts(filename);
     [spec, headerinfo] = read_caret_spec(filename);
-    fn = fieldnames(spec)
+    fn = fieldnames(spec);
     
     % concatenate the filenames that contain coordinates
     % concatenate the filenames that contain topologies
@@ -358,15 +364,23 @@ switch fileformat
     topofiles  = {};
     for k = 1:numel(fn)
       if ~isempty(strfind(fn{k}, 'topo'))
-        topofiles = cat(1,topofiles, spec.(fn{k}));
+        topofiles = cat(1,topofiles, fullfile(p,spec.(fn{k})));
       end
       if ~isempty(strfind(fn{k}, 'coord'))
-        coordfiles = cat(1,coordfiles, spec.(fn{k}));
+        coordfiles = cat(1,coordfiles, fullfile(p,spec.(fn{k})));
       end
     end
-    [selcoord, ok] = listdlg('ListString',coordfiles,'SelectionMode','single','PromptString','Select a file describing the coordinates');
-    [seltopo, ok]  = listdlg('ListString',topofiles,'SelectionMode','single','PromptString','Select a file describing the topology');
-    
+    if isempty(surface)
+      [selcoord, ok] = listdlg('ListString',coordfiles,'SelectionMode','single','PromptString','Select a file describing the coordinates');
+    else
+      selcoord = find(contains(coordfiles, surface));
+    end
+    if numel(topofiles)>1
+      [seltopo, ok]  = listdlg('ListString',topofiles,'SelectionMode','single','PromptString','Select a file describing the topology');
+    else
+      seltopo = 1;
+    end
+      
     % recursively call ft_read_headshape
     tmp1 = ft_read_headshape(coordfiles{selcoord});
     tmp2 = ft_read_headshape(topofiles{seltopo});
@@ -377,7 +391,7 @@ switch fileformat
       ft_error('there''s a mismatch between the number of points used in the topology, and described by the coordinates');
     end
     
-    shape.pos = tmp1.pos;
+    shape     = tmp1;
     shape.tri = tmp2.tri;
     
   case 'neuromag_mex'
@@ -773,7 +787,7 @@ switch fileformat
     shape.fid.label(1:3)= {'nas', 'lpa', 'rpa'};
     
   case 'yokogawa_hsp'
-    fid = fopen(filename, 'rt');
+    fid = fopen_or_error(filename, 'rt');
     
     fidstart = false;
     hspstart = false;
@@ -1074,7 +1088,7 @@ switch fileformat
     shape.unit = 'unkown';
     
     if exist([filename '.minf'], 'file')
-      minffid = fopen([filename '.minf']);
+      minffid = fopen_or_error([filename '.minf']);
       hdr=fgetl(minffid);
       tfm_idx = strfind(hdr,'''transformations'':') + 21;
       transform = sscanf(hdr(tfm_idx:end),'%f,',[4 4])';
@@ -1150,7 +1164,7 @@ switch fileformat
     end
     
   case 'neuromag_mesh'
-    fid = fopen(filename, 'rt');
+    fid = fopen_or_error(filename, 'rt');
     npos = fscanf(fid, '%d', 1);
     pos = fscanf(fid, '%f', [6 npos])';
     ntri = fscanf(fid, '%d', 1);
@@ -1186,8 +1200,8 @@ switch fileformat
       % try reading it as volume conductor
       % and treat the skin surface as headshape
       try
-        headmodel = ft_read_vol(filename);
-        if ~ft_voltype(headmodel, 'bem')
+        headmodel = ft_read_headmodel(filename);
+        if ~ft_headmodeltype(headmodel, 'bem')
           ft_error('skin surface can only be extracted from boundary element model');
         else
           if ~isfield(headmodel, 'skin')

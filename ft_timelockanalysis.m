@@ -102,7 +102,7 @@ data = ft_checkdata(data, 'datatype', {'raw+comp', 'raw'}, 'feedback', 'yes', 'h
 
 % check if the input cfg is valid for this function
 cfg = ft_checkconfig(cfg, 'forbidden',  {'normalizecov', 'normalizevar'});
-cfg = ft_checkconfig(cfg, 'forbidden',  {'latency', 'blcovariance', 'blcovariancewindow'});
+cfg = ft_checkconfig(cfg, 'forbidden',  {'blcovariance', 'blcovariancewindow'});
 cfg = ft_checkconfig(cfg, 'renamed',    {'blc', 'demean'});
 cfg = ft_checkconfig(cfg, 'renamed',    {'blcwindow', 'baselinewindow'});
 
@@ -115,7 +115,7 @@ cfg.vartrllength = ft_getopt(cfg, 'vartrllength', 0);
 cfg.feedback     = ft_getopt(cfg, 'feedback',     'text');
 cfg.preproc      = ft_getopt(cfg, 'preproc',      []);
 cfg.covariance       = ft_getopt(cfg, 'covariance',      'no');
-cfg.covariancewindow = ft_getopt(cfg, 'covariancwindow', 'all');
+cfg.covariancewindow = ft_getopt(cfg, 'covariancewindow', 'all');
 cfg.removemean       = ft_getopt(cfg, 'removemean',      'yes');
 
 % create logical flags for convenience
@@ -225,11 +225,6 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % collect the results
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-
-
 
 timelock = keepfields(data, {'time' 'grad', 'elec', 'opto', 'topo', 'topodimord', 'topolabel', 'unmixing', 'unmixingdimord', 'label'});
 if ~keeptrials

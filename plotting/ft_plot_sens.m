@@ -25,9 +25,8 @@ function hs = ft_plot_sens(sens, varargin)
 % The following options apply to EEG electrodes
 %   'elec'            = true/false, plot each individual electrode (default = false)
 %   'orientation'     = true/false, plot a line for the orientation of each electrode (default = false)
-%   'elecshape'       = 'point', 'circle', 'square', 'sphere', or 'disc' (default is automatic)
+%   'elecshape'       = 'point', 'circle', 'square', or 'sphere' (default is automatic)
 %   'elecsize'        = diameter of the electrodes (default is automatic)
-%   'headshape'       = headshape, required for elecshape 'disc'
 % The following options apply to NIRS optodes
 %   'opto'            = true/false, plot each individual optode (default = false)
 %   'orientation'     = true/false, plot a line for the orientation of each optode (default = false)
@@ -50,7 +49,7 @@ function hs = ft_plot_sens(sens, varargin)
 %   figure; ft_plot_sens(sens, 'coilshape', 'circle', 'coil', true, 'chantype', 'meggrad')
 %   figure; ft_plot_sens(sens, 'coilshape', 'circle', 'coil', false, 'orientation', true)
 %
-% See also FT_READ_SENS, FT_PLOT_HEADSHAPE, FT_PLOT_VOL
+% See also FT_READ_SENS, FT_PLOT_HEADSHAPE, FT_PLOT_HEADMODEL
 
 % Copyright (C) 2009-2018, Robert Oostenveld, Arjen Stolk
 %
@@ -97,7 +96,6 @@ coilsize        = ft_getopt(varargin, 'coilsize');  % default depends on the inp
 elec            = ft_getopt(varargin, 'elec', false);
 elecshape       = ft_getopt(varargin, 'elecshape'); % default depends on the input, see below
 elecsize        = ft_getopt(varargin, 'elecsize');  % default depends on the input, see below
-headshape       = ft_getopt(varargin, 'headshape', []); % for elecshape 'disc'
 % this is for NIRS optode arrays
 opto            = ft_getopt(varargin, 'opto', false);
 optoshape       = ft_getopt(varargin, 'optoshape'); % default depends on the input, see below
@@ -129,7 +127,7 @@ style           = ft_getopt(varargin, 'style');
 marker          = ft_getopt(varargin, 'marker', '.');
 
 % this is simply passed to ft_plot_mesh
-if strcmp(sensshape, 'sphere') || strcmp(sensshape, 'disc')
+if strcmp(sensshape, 'sphere')
   edgecolor     = ft_getopt(varargin, 'edgecolor', 'none');
 else
   edgecolor     = ft_getopt(varargin, 'edgecolor', 'k');
@@ -139,7 +137,7 @@ facealpha       = ft_getopt(varargin, 'facealpha',   1);
 edgealpha       = ft_getopt(varargin, 'edgealpha',   1);
 
 if ischar(chantype)
-  % this should be a cell array
+  % this should be a cell-array
   chantype = {chantype};
 end
 
@@ -182,11 +180,11 @@ if isempty(senssize)
     case 'neuromag122'
       senssize = 35; % FIXME this is only an estimate
     case 'ctf151'
-      senssize = 15; % FIXME this is only an estimate
+      senssize = 20;
     case 'ctf275'
-      senssize = 15; % FIXME this is only an estimate
+      senssize = 18;
     otherwise
-      if strcmp(sensshape, 'sphere') || strcmp(sensshape, 'disc')
+      if strcmp(sensshape, 'sphere')
         senssize = 4; % assuming spheres are used for intracranial electrodes, diameter is about 4mm
       elseif strcmp(sensshape, 'point')
         senssize = 30;
@@ -204,7 +202,7 @@ if isempty(facecolor) % set default color depending on shape
     facecolor = 'k';
   elseif strcmp(sensshape, 'circle') || strcmp(sensshape, 'square')
     facecolor = 'none';
-  elseif strcmp(sensshape, 'sphere') || strcmp(sensshape, 'disc')
+  elseif strcmp(sensshape, 'sphere')
     facecolor = 'b';
   end
 end
@@ -294,18 +292,23 @@ else
   
 end % if istrue(individual)
 
-if isempty(ori)
-  % determine the orientation by fitting a sphere to the positions
-  % this should be reasonable for scalp electrodes or optodes with complete coverage
-  try
-    tmp = pos(~any(isnan(pos), 2),:); % remove rows that contain a nan
-    center = fitsphere(tmp);
-  catch
-    center = [nan nan nan];
-  end
-  for i=1:size(pos,1)
-    ori(i,:) = pos(i,:) - center;
-    ori(i,:) = ori(i,:)/norm(ori(i,:));
+if isempty(ori) && ~isempty(pos)
+  if ~any(isnan(pos(:)))
+    % determine orientations based on surface triangulation
+    tri = projecttri(pos);
+    ori = normals(pos, tri);
+  else
+    % determine orientations by fitting a sphere to the sensors
+    try
+      tmp = pos(~any(isnan(pos), 2),:); % remove rows that contain a nan
+      center = fitsphere(tmp);
+    catch
+      center = [nan nan nan];
+    end
+    for i=1:size(pos,1)
+      ori(i,:) = pos(i,:) - center;
+      ori(i,:) = ori(i,:)/norm(ori(i,:));
+    end
   end
 end
 
@@ -338,6 +341,7 @@ switch sensshape
       end
     else
       % the style is not specified, use facecolor for the marker
+      % if the marker is '.' it will show points that do not depend on the size, in all other cases (e.g. 'o') the size is relevant
       hs = scatter3(pos(:,1), pos(:,2), pos(:,3), senssize.^2, facecolor, marker);
     end
     
@@ -379,59 +383,26 @@ switch sensshape
       set(hs, 'EdgeColor', edgecolor, 'FaceColor', facecolor, 'EdgeAlpha', edgealpha, 'FaceAlpha', facealpha);
     end
     
-  case 'disc'
-    
-    if isempty(headshape)
-      ft_error('cannot plot electrodes as discs without a headshape to align them to')
-    end
-    
-    npoints = 25; % points on the headshape used for estimating the local norm
-    for i=1:size(pos,1)
-      
-      % calculate local norm vectors
-      d = sqrt( (pos(i,1)-headshape.pos(:,1)).^2 + ...
-        (pos(i,2)-headshape.pos(:,2)).^2 + (pos(i,3)-headshape.pos(:,3)).^2 );
-      [ds, idx] = sort(d);
-      x = headshape.pos(idx(1:npoints),1); 
-      y = headshape.pos(idx(1:npoints),2); 
-      z = headshape.pos(idx(1:npoints),3);
-      ptCloud = pointCloud([x y z]);
-      normals = pcnormals(ptCloud);
-      u = normals(:,1); 
-      v = normals(:,2); 
-      w = normals(:,3);
-      
-      % flip the normal vector if it is not pointing toward the center
-      C = mean(headshape.pos,1); % headshape center
-      for k = 1:numel(x)
-        p1 = C - [x(k),y(k),z(k)];
-        p2 = [u(k),v(k),w(k)];
-        angle = atan2(norm(cross(p1,p2)),p1*p2');
-        if angle > pi/2 || angle < -pi/2
-          u(k) = -u(k);
-          v(k) = -v(k);
-          w(k) = -w(k);
-        end
-      end
-      Fn = nanmean([u v w],1);
-      Fn = Fn * (1/sqrt(sum(Fn.^2,2))); % normalize
-      ori(i,:) = Fn;
-      
-      % create disc aligned to the headshape (ideally, a hull)
-      [X,Y,Z] = cylinder2([senssize/2 senssize/2],[ori(i,1) ori(i,2) ori(i,3)], 100);
-      X(1,:) = X(1,:)+pos(i,1); Y(1,:) = Y(1,:)+pos(i,2); Z(1,:) = Z(1,:)+pos(i,3);
-      t = (senssize/2)/10; % add thickness (outward), X(2,1)-X(1,1) etc.
-      X(2,:) = X(1,:)-t*ori(i,1); Y(2,:) = Y(1,:)-t*ori(i,2); Z(2,:) = Z(1,:)-t*ori(i,3);
-      hold on; mesh(X,Y,Z, 'facecolor', facecolor, 'edgecolor', edgecolor, 'lineStyle','none'); % draw cylinder
-      hold on; fill3(X(1,:),Y(1,:),Z(1,:), facecolor, 'lineStyle','none'); % fill sides
-      hold on; fill3(X(2,:),Y(2,:),Z(2,:), facecolor, 'lineStyle','none');  
-    end
-    
   otherwise
     ft_error('incorrect shape');
 end % switch
 
 if ~isempty(label) && ~any(strcmp(label, {'off', 'no'}))
+  
+  % determine the amount of offset for the labels
+  if strcmp(sensshape, 'point')
+    % determine the median of the distance to the nearest neighbour
+    sensdist = triu(dist(sens.chanpos'),1);
+    sensdist(sensdist==0) = Inf;
+    sensdist = min(sensdist,[], 2);
+    sensdist = median(sensdist);
+    % the offset is based on distance between sensors
+    offset = 0.5 * sensdist;
+  else
+    % the offset is based on size of the sensors
+    offset = 1.5 * senssize;
+  end
+  
   for i=1:length(sens.label)
     switch label
       case {'on', 'yes'}
@@ -443,17 +414,10 @@ if ~isempty(label) && ~any(strcmp(label, {'off', 'no'}))
       otherwise
         ft_error('unsupported value for option ''label''');
     end % switch
-    if isfield(sens, 'chanori')
-      % shift the labels along the channel orientation, which is presumably orthogonal to the scalp
-      ori = sens.chanori(i,:);
-    else
-      % shift the labels away from the origin of the coordinate system
-      ori = sens.chanpos(i,:) / norm(sens.chanpos(i,:));
-    end
-    % shift the label 5 mm
-    x = sens.chanpos(i,1) + 5 * ft_scalingfactor('mm', sens.unit) * ori(1);
-    y = sens.chanpos(i,2) + 5 * ft_scalingfactor('mm', sens.unit) * ori(2);
-    z = sens.chanpos(i,3) + 5 * ft_scalingfactor('mm', sens.unit) * ori(3);
+    % shift the label with a certain offset
+    x = sens.chanpos(i,1) + offset * ori(i,1);
+    y = sens.chanpos(i,2) + offset * ori(i,2);
+    z = sens.chanpos(i,3) + offset * ori(i,3);
     text(x, y, z, str, 'color', fontcolor, 'fontunits', fontunits, 'fontsize', fontsize, 'fontname', fontname, 'fontweight', fontweight, 'horizontalalignment', 'center', 'verticalalignment', 'middle');
   end % for each channel
 end % if label
