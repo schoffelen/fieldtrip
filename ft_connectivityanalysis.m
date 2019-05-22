@@ -84,7 +84,7 @@ function [stat] = ft_connectivityanalysis(cfg, data)
 % Undocumented options:
 %   cfg.refindx             =
 %   cfg.jackknife           =
-%   cfg.method              = 'mi'/'di';
+%   cfg.method              = 'mi'/'di'/'dfi';
 %   cfg.granger.block       =
 %   cfg.granger.conditional =
 %
@@ -95,7 +95,7 @@ function [stat] = ft_connectivityanalysis(cfg, data)
 
 % Copyright (C) 2009, Jan-Mathijs Schoffelen, Andre Bastos, Martin Vinck, Robert Oostenveld
 % Copyright (C) 2010-2011, Jan-Mathijs Schoffelen, Martin Vinck
-% Copyright (C) 2012-2013, Jan-Mathijs Schoffelen
+% Copyright (C) 2012-2019, Jan-Mathijs Schoffelen
 %
 % This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
 % for the documentation and details.
@@ -343,7 +343,7 @@ switch cfg.method
     % inparam = 'avg.mom';
     inparam = 'mom';
     outparam = 'powcorrspctrm';
-  case {'mi' 'di'}
+  case {'mi' 'di' 'dfi'}
     % create the subcfg for the mutual information
     if ~isfield(cfg, cfg.method), cfg.(cfg.method) = []; end
     cfg.(cfg.method).method  = ft_getopt(cfg.(cfg.method), 'method',  'gcmi'); % default to the Gaussian Copula based method
@@ -550,7 +550,7 @@ elseif hasrpt && dojack && ~(exist('debiaswpli', 'var') || exist('weightppc', 'v
     clear sumdat;
   end
   hasjack = 1;
-elseif hasrpt && ~(exist('debiaswpli', 'var') || exist('weightppc', 'var') || any(strcmp({'powcorr_ortho';'mi';'di'},cfg.method)))% || needrpt)
+elseif hasrpt && ~(exist('debiaswpli', 'var') || exist('weightppc', 'var') || any(strcmp({'powcorr_ortho';'mi';'di';'dfi'},cfg.method)))% || needrpt)
   % create dof variable
   if isfield(data, 'dof')
     dof = data.dof;
@@ -882,12 +882,12 @@ switch cfg.method
     varout = [];
     nrpt = numel(data.cumtapcnt);
     
-  case {'mi' 'di'}
+  case {'mi' 'di' 'dfi'}
     % mutual information using the information breakdown toolbox, or gcmi
     % presence of the toolbox is checked in the low-level function.
     % directed information using the gcmi toolbox, requires a lag to be
     % specified
-    if strcmp(cfg.method, 'di') && any(cfg.(cfg.method).lags==0)
+    if (strcmp(cfg.method, 'di') || strcmp(cfg.method, 'dfi')) && any(cfg.(cfg.method).lags==0)
       error('directed information requires cfg.di.lags to be ~= 0');
     end
     
@@ -912,6 +912,14 @@ switch cfg.method
           cfg.refindx = match_str(data.label, cfg.refchannel);
         elseif ischar(cfg.refindx) && strcmp(cfg.refindx, 'all')
           %error('this is yet not possible and should be fixed elegantly'); %FIXME now we should decide whether we allow for multivariate reference channels, or we treat the refindx as a per-element vector, i.e. allow for all-to-all
+        end
+        
+        if strcmp(cfg.method, 'dfi')
+          cfg.dfi.feature = ft_getopt(cfg.dfi, 'feature', []);
+          if isempty(cfg.dfi.feature)
+            error('dfi requires a feature to be specified');
+          end
+          featureindx = match_str(data.label, cfg.dfi.feature);
         end
         
         dat = catnan(data.trial, max(abs(cfg.(cfg.method).lags)));
@@ -975,8 +983,9 @@ switch cfg.method
         % dat = abs(dat);
     end
     optarg   = {'numbin', cfg.(cfg.method).numbin, 'lags', cfg.(cfg.method).lags, 'refindx', refindx, 'method', cfg.(cfg.method).method, 'complex', cfg.(cfg.method).complex, 'opts', cfg.(cfg.method).opts};
-    if ~isempty(tra),            optarg = cat(2, optarg, {'tra' tra}); end
-    if strcmp(cfg.method, 'di'), optarg = cat(2, optarg, {'conditional', true}); end
+    if ~isempty(tra),             optarg = cat(2, optarg, {'tra' tra});                  end
+    if strcmp(cfg.method, 'di'),  optarg = cat(2, optarg, {'conditional', true});        end
+    if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'featureindx', featureindx}); end
     [datout] = ft_connectivity_mutualinformation(dat, optarg{:});
     varout   = [];
     nrpt     = [];    

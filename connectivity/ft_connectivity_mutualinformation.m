@@ -51,6 +51,7 @@ function output = ft_connectivity_mutualinformation(input, varargin)
 
 method  = ft_getopt(varargin, 'method',  'ibtb'); % can be gcmi
 refindx = ft_getopt(varargin, 'refindx', 'all', 1);
+featureindx = ft_getopt(varargin, 'featureindx'); % this is only function if gcmi is the method
 lags    = ft_getopt(varargin, 'lags',    0);  % shift of data w.r.t. reference, in samples
 tra     = ft_getopt(varargin, 'tra',     []); % 1/0-matrix for multivariate combination Nnew x Norg, where Norg = size(input,1)
 conditional = istrue(ft_getopt(varargin, 'conditional', false)); % this is only functional if gcmi is the method
@@ -202,7 +203,7 @@ switch method
         
       end1 = beg1+n1-1;
       end2 = beg2+n1-1;
-      if ~conditional
+      if ~conditional && isempty(featureindx)
         for p = 1:numel(refindx)
           tmprefdata = nan(sum(tra(refindx(p),:)),n);
           tmprefdata(:, beg1:end1) = input(tra(refindx(p),:), beg2:end2);
@@ -220,7 +221,7 @@ switch method
             output(:,p,m) = mi_gg_vec(tmpinput(:,:)',tmprefdata',true,true);
           end
         end
-      else
+      elseif conditional && isempty(featureindx)
         % condition on the time-lagged version of the target signal
         target_shifted               = nan(size(input,1),n);
         target_shifted(:, beg1:end1) = input(:, beg2:end2);
@@ -244,6 +245,43 @@ switch method
           else
             tmprefdata = target_shifted(:,tra(refindx(p),:));
             output(:,p,m) = cmi_ggg_vec(target,tmprefdata,target_shifted, true, true);
+          end
+        end
+      else
+        % a featureindx has been specified
+        
+        
+        % condition on the time-lagged version of the target signal
+        target_shifted               = nan(size(input,1),n);
+        target_shifted(:, beg1:end1) = input(:, beg2:end2);
+        
+        finitevals2    = sum(finitevals,1)>0&sum(isfinite(target_shifted),1)>0; % this conservatively takes only the non-nan samples across all input data channels
+        
+        % the following step is quite expensive computationally, but for
+        % the conditioning all shifted versions of the target signal are
+        % needed anyway
+        target         = copnorm(input(:,finitevals2)');
+        target         = bsxfun(@minus,target,mean(target,1));
+        target_shifted = copnorm(target_shifted(:,finitevals2)');
+        target_shifted = bsxfun(@minus,target_shifted,mean(target_shifted,1));
+        %feature        = copnorm(input(tra(featureindx,:),finitevals2)');
+        feature        = target_shifted(:,tra(featureindx,:));
+        
+        for p = 1:numel(refindx)
+          if ~isequal(tra,eye(size(tra,1)))
+%             tmprefdata  = target_shifted(:,tra(refindx(p),:));
+%             for k = setdiff(1:size(tra,1),refindx(p))
+%               output(k,p,m) = cmi_ggg(target(:,tra(k,:)),tmprefdata,target_shifted(:,tra(k,:)), true, false);
+%             end
+             keyboard
+          else
+            tmprefdata = target_shifted(:,tra(refindx(p),:));
+            
+            % compute the three information components
+            I1 = cmi_ggg_vec(tmprefdata, feature, target_shifted, true, true);
+            I2 = cmi_ggg_vec(target,     feature, target_shifted, true, true);
+            I3 = cmi_ggg_vec(cat(3, target, repmat(tmprefdata, 1, size(target,2))), feature, target_shifted, true, true);
+            output(:,p,m) = I1+I2-I3;
           end
         end
       end
