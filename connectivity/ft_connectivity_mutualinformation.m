@@ -55,6 +55,7 @@ featureindx = ft_getopt(varargin, 'featureindx'); % this is only function if gcm
 lags    = ft_getopt(varargin, 'lags',    0);  % shift of data w.r.t. reference, in samples
 tra     = ft_getopt(varargin, 'tra',     []); % 1/0-matrix for multivariate combination Nnew x Norg, where Norg = size(input,1)
 conditional = istrue(ft_getopt(varargin, 'conditional', false)); % this is only functional if gcmi is the method
+combinelags = istrue(ft_getopt(varargin, 'combinelags', false)); % this is only functional if gcmi is the method, with di/dfi
 if conditional && ~strcmp(method, 'gcmi')
   error('conditional mutual information can be only computed with ''gcmi'' as method');
 end
@@ -62,7 +63,7 @@ end
 % check whether the combined options work out
 if ~isempty(tra)
   tra = full(tra)>0;
-  if strcmp(method, 'ibtb') && ~isequal(tra,eye(size(tra,1))>0),
+  if strcmp(method, 'ibtb') && ~isequal(tra,eye(size(tra,1))>0)
     error('method ''ibtb'' in combination with a non-identity ''tra'' is not possible');
   end
 else
@@ -156,10 +157,10 @@ switch method
     
     % verify whether data is complex-valued, check the inputs, and adjust
     % the input data
-    if ~all(imag(input(:))==0),
+    if ~all(imag(input(:))==0)
       % a tra deviating from I is currently not supported: ask Robin how to
       % deal with this, if possible at all
-      if ~isequal(tra,eye(size(tra,1))>0),
+      if ~isequal(tra,eye(size(tra,1))>0)
         error('complex-valued input data in combination with multivariate signals is not supported');
       end
       switch cmplx
@@ -188,15 +189,22 @@ switch method
       end
     end
   
+    if combinelags
+      otherlags = lags(2:end);
+      lags      = lags(1);
+    else
+      otherlags = [];
+    end
+    
     nchans = size(tra,1); 
     n      = size(input, 2);
     output = zeros(nchans, numel(refindx), numel(lags)) + nan;
     
-    % for each lag
+    % for each lag if combinelags is false
     for m = 1:numel(lags)
       fprintf('computing mutualinformation for time lag in samples %d\n', lags(m));
       
-      % get the samples for the relative shifts
+      % get the samples for the relative shifts for the given lag
       beg1 = max(0, lags(m))  + 1;
       beg2 = max(0, -lags(m)) + 1;
       n1   = n-abs(lags(m));
@@ -223,32 +231,46 @@ switch method
         end
       elseif conditional && isempty(featureindx)
         % condition on the time-lagged version of the target signal
-        target_shifted               = nan(size(input,1),n);
-        target_shifted(:, beg1:end1) = input(:, beg2:end2);
+        target_shifted               = nan(size(input,1),n,numel(otherlags)+1);
+        target_shifted(:, beg1:end1,1) = input(:, beg2:end2);
+        for k = 1:numel(otherlags)
+          % get the samples for the relative shifts for the given lag
+          otherbeg1 = max(0,  otherlags(k))  + 1;
+          otherbeg2 = max(0, -otherlags(k))  + 1;
+          n1   = n-abs(otherlags(k));
+          
+          otherend1 = otherbeg1+n1-1;
+          otherend2 = otherbeg2+n1-1;
+          target_shifted(:,otherbeg1:otherend1,k+1) = input(:, otherbeg2:otherend2);
+        end
         
-        finitevals2    = sum(finitevals,1)>0&sum(isfinite(target_shifted),1)>0; % this conservatively takes only the non-nan samples across all input data channels
+        finitevals2    = sum(finitevals,1)>0&sum(sum(isfinite(target_shifted),3),1)>0; % this conservatively takes only the non-nan samples across all input data channels
         
         % the following step is quite expensive computationally, but for
         % the conditioning all shifted versions of the target signal are
         % needed anyway
         target         = copnorm(input(:,finitevals2)');
         target         = bsxfun(@minus,target,mean(target,1));
-        target_shifted = copnorm(target_shifted(:,finitevals2)');
+        target_shifted = permute(target_shifted(:, finitevals2, :), [2 1 3]);
+        for k = 1:size(target_shifted,3)
+          target_shifted(:,:,k) = copnorm(target_shifted(:,:,k));
+        end
         target_shifted = bsxfun(@minus,target_shifted,mean(target_shifted,1));
         
         for p = 1:numel(refindx)
           if ~isequal(tra,eye(size(tra,1)))
             tmprefdata  = target_shifted(:,tra(refindx(p),:));
             for k = setdiff(1:size(tra,1),refindx(p))
-              output(k,p,m) = cmi_ggg(target(:,tra(k,:)),tmprefdata,target_shifted(:,tra(k,:)), true, false);
+              output(k,p,m) = cmi_ggg(target(:,tra(k,:)),tmprefdata,target_shifted(:,tra(k,:),:), true, false);
             end
           else
-            tmprefdata = target_shifted(:,tra(refindx(p),:));
+            p
+            tmprefdata = target_shifted(:,tra(refindx(p),:),:);
             output(:,p,m) = cmi_ggg_vec(target,tmprefdata,target_shifted, true, true);
           end
         end
       else
-        % a featureindx has been specified
+        % a featureindx has been specified, this refers to dfi
         
         
         % condition on the time-lagged version of the target signal
