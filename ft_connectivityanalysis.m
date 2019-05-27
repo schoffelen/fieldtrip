@@ -351,6 +351,8 @@ switch cfg.method
     cfg.(cfg.method).lags    = ft_getopt(cfg.(cfg.method), 'lags',    0);
     cfg.(cfg.method).montage = ft_getopt(cfg.(cfg.method), 'montage', []);
     cfg.(cfg.method).complex = ft_getopt(cfg.(cfg.method), 'complex', 'complex');
+    cfg.(cfg.method).combinelags = ft_getopt(cfg.(cfg.method), 'combinelags', false);
+    cfg.(cfg.method).featureindx = ft_getopt(cfg.(cfg.method), 'featureindx', []);
     
     % what are the input requirements?
     data  = ft_checkdata(data, 'datatype', {'raw' 'timelock' 'freq' 'source'});
@@ -950,7 +952,7 @@ switch cfg.method
         else
           ft_error('at present cfg.refindx should be either ''all'', or scalar');
         end
-        if numel(cfg.(cfg.method).lags)>1
+        if numel(cfg.(cfg.method).lags)>1 && ~istrue(cfg.(cfg.method).combinelags)
           data.time = cfg.(cfg.method).lags./data.fsample;
           outdimord = [outdimord, '_time'];
         else
@@ -985,7 +987,10 @@ switch cfg.method
     optarg   = {'numbin', cfg.(cfg.method).numbin, 'lags', cfg.(cfg.method).lags, 'refindx', refindx, 'method', cfg.(cfg.method).method, 'complex', cfg.(cfg.method).complex, 'opts', cfg.(cfg.method).opts};
     if ~isempty(tra),             optarg = cat(2, optarg, {'tra' tra});                  end
     if strcmp(cfg.method, 'di'),  optarg = cat(2, optarg, {'conditional', true});        end
-    if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'featureindx', featureindx}); end
+    if strcmp(cfg.method, 'di'),  optarg = cat(2, optarg, {'combinelags', cfg.(cfg.method).combinelags});       end
+    if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'featureindx', cfg.(cfg.method).featureindx}); end
+    if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'conditional', true});        end
+    if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'combinelags', cfg.(cfg.method).combinelags});       end
     [datout] = ft_connectivity_mutualinformation(dat, optarg{:});
     varout   = [];
     nrpt     = [];    
