@@ -261,10 +261,9 @@ switch method
           if ~isequal(tra,eye(size(tra,1)))
             tmprefdata  = target_shifted(:,tra(refindx(p),:));
             for k = setdiff(1:size(tra,1),refindx(p))
-              output(k,p,m) = cmi_ggg(target(:,tra(k,:)),tmprefdata,target_shifted(:,tra(k,:),:), true, false);
+              output(k,p,m) = cmi_ggg(target(:,tra(k,:)),tmprefdata,target_shifted(:,tra(k,:),:), true, true);
             end
           else
-            p
             tmprefdata = target_shifted(:,tra(refindx(p),:),:);
             output(:,p,m) = cmi_ggg_vec(target,tmprefdata,target_shifted, true, true);
           end
