@@ -921,7 +921,9 @@ switch cfg.method
           if isempty(cfg.dfi.feature)
             error('dfi requires a feature to be specified');
           end
-          featureindx = match_str(data.label, cfg.dfi.feature);
+          cfg.dfi.featureindx = match_str(data.label, cfg.dfi.feature);
+          cfg.dfi.featurelags = ft_getopt(cfg.dfi, 'featurelags');
+          if ~isempty(cfg.dfi.featurelags), cfg.dfi.featurelags = round(cfg.dfi.featurelags.*data.fsample); end
         end
         
         dat = catnan(data.trial, max(abs(cfg.(cfg.method).lags)));
@@ -989,6 +991,7 @@ switch cfg.method
     if strcmp(cfg.method, 'di'),  optarg = cat(2, optarg, {'conditional', true});        end
     if strcmp(cfg.method, 'di'),  optarg = cat(2, optarg, {'combinelags', cfg.(cfg.method).combinelags});       end
     if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'featureindx', cfg.(cfg.method).featureindx}); end
+    if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'featurelags', cfg.(cfg.method).featurelags}); end
     if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'conditional', true});        end
     if strcmp(cfg.method, 'dfi'), optarg = cat(2, optarg, {'combinelags', cfg.(cfg.method).combinelags});       end
     [datout] = ft_connectivity_mutualinformation(dat, optarg{:});

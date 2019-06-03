@@ -53,6 +53,7 @@ method  = ft_getopt(varargin, 'method',  'ibtb'); % can be gcmi
 refindx = ft_getopt(varargin, 'refindx', 'all', 1);
 featureindx = ft_getopt(varargin, 'featureindx'); % this is only function if gcmi is the method
 lags    = ft_getopt(varargin, 'lags',    0);  % shift of data w.r.t. reference, in samples
+featurelags = ft_getopt(varargin, 'featurelags', []);
 tra     = ft_getopt(varargin, 'tra',     []); % 1/0-matrix for multivariate combination Nnew x Norg, where Norg = size(input,1)
 conditional = istrue(ft_getopt(varargin, 'conditional', false)); % this is only functional if gcmi is the method
 combinelags = istrue(ft_getopt(varargin, 'combinelags', false)); % this is only functional if gcmi is the method, with di/dfi
@@ -234,7 +235,8 @@ switch method
         target_shifted               = nan(size(input,1),n,numel(otherlags)+1);
         target_shifted(:, beg1:end1,1) = input(:, beg2:end2);
         for k = 1:numel(otherlags)
-          % get the samples for the relative shifts for the given lag
+          % get the samples for the relative shifts for the given lag,
+          % accumulate the lags
           otherbeg1 = max(0,  otherlags(k))  + 1;
           otherbeg2 = max(0, -otherlags(k))  + 1;
           n1   = n-abs(otherlags(k));
@@ -270,13 +272,35 @@ switch method
         end
       else
         % a featureindx has been specified, this refers to dfi
+        if ~isempty(otherlags)
+          error('only a single time lag is allowed in dfi');
+        end
+        if isempty(featurelags)
+          featurelags = lags;
+        end
+        if ~isequal(featurelags, lags)
+          featurebeg1 = max(0,  featurelags)  + 1;
+          featurebeg2 = max(0, -featurelags)  + 1;
+          n1   = n-abs(featurelags);
+          
+          featureend1 = featurebeg1+n1-1;
+          featureend2 = featurebeg2+n1-1;
+        else
+          featurebeg1 = beg1;
+          featureend1 = end1;
+          featurebeg2 = beg2;
+          featureend2 = end2;
+        end
         
+        % feature data
+        feature = nan(sum(tra(featureindx,:)),n);
+        feature(:, featurebeg1:featureend1) = input(tra(featureindx,:),featurebeg2:featureend2);
         
         % condition on the time-lagged version of the target signal
         target_shifted               = nan(size(input,1),n);
         target_shifted(:, beg1:end1) = input(:, beg2:end2);
         
-        finitevals2    = sum(finitevals,1)>0&sum(isfinite(target_shifted),1)>0; % this conservatively takes only the non-nan samples across all input data channels
+        finitevals2    = sum(finitevals,1)>0&sum(isfinite(target_shifted),1)>0&sum(isfinite(feature),1)>0; % this conservatively takes only the non-nan samples across all input data channels
         
         % the following step is quite expensive computationally, but for
         % the conditioning all shifted versions of the target signal are
@@ -285,8 +309,9 @@ switch method
         target         = bsxfun(@minus,target,mean(target,1));
         target_shifted = copnorm(target_shifted(:,finitevals2)');
         target_shifted = bsxfun(@minus,target_shifted,mean(target_shifted,1));
-        %feature        = copnorm(input(tra(featureindx,:),finitevals2)');
-        feature        = target_shifted(:,tra(featureindx,:));
+        feature        = copnorm(feature(:,finitevals2)');
+        feature        = bsxfun(@minus,feature,mean(feature,1));
+        %feature        = target_shifted(:,tra(featureindx,:));
         
         for p = 1:numel(refindx)
           if ~isequal(tra,eye(size(tra,1)))
