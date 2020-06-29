@@ -31,12 +31,14 @@ function [source] = ft_source2full(source)
 %
 % $Id$
 
-ft_defaults
+% start with ensuring the inside field to be logical
+source = fixinside(source, 'logical');
 
-if ~isfield(source, 'inside')  || ...
-   ~isfield(source, 'outside') || ...
-   ~isfield(source, 'dim')
-  ft_error('one of the required fields is missing in the source structure');
+if ~isfield(source, 'inside')
+  ft_error('ft_source2full requires an ''inside'' field in the input');
+end
+if ~isfield(source, 'dim')
+  ft_error('ft_source2full requires an ''inside'' field in the input');
 end
 
 if ~isfield(source, 'pos') && (~isfield(source, 'xgrid') || ~isfield(source, 'ygrid') || ...
@@ -44,7 +46,7 @@ if ~isfield(source, 'pos') && (~isfield(source, 'xgrid') || ~isfield(source, 'yg
   ft_error('the input data needs at least a ''pos'' field, or ''x/y/zgrid''');
 end
 
-if isfield(source, 'xgrid'),
+if isfield(source, 'xgrid')
   xgrid = source.xgrid;
   ygrid = source.ygrid;
   zgrid = source.zgrid;
@@ -65,15 +67,15 @@ else
   sparsepos = source.pos;
   ok  = 0;
   cnt = 0;
-  while ok==0,
+  while ok==0
     cnt  = cnt+1;
     dpos = sparsepos - sparsepos(cnt*ones(size(sparsepos,1),1),:);
-    [srt, indx] = sort(sum(dpos.^2,2));
+    [dum, indx] = sort(sqrt(sum(dpos.^2,2)));
     srt    = dpos(indx,:);
-    tmpsrt = abs(srt(2:7,:));
+    tmpsrt = abs(srt(2:7,:))./norm(srt(2,:));
     csrt   = tmpsrt*tmpsrt';
-    sel    = find(sum(csrt==0)>=2);
-    if numel(sel)>=3, 
+    sel    = find(sum(csrt==0)>=3);
+    if numel(sel)>=3
       ok = 1;
     end
   end  
@@ -84,9 +86,9 @@ else
   M         = pinv(tmpdpos(2:4,:));
   
   % get rotation such that maxima are on diagonal and positive
-  m(1) = find(M(1,:)==max(abs(M(1,:))));
-  m(2) = find(M(2,:)==max(abs(M(2,:))));
-  m(3) = find(M(3,:)==max(abs(M(3,:))));
+  m(1) = find(abs(M(1,:))==max(abs(M(1,:))));
+  m(2) = find(abs(M(2,:))==max(abs(M(2,:))));
+  m(3) = find(abs(M(3,:))==max(abs(M(3,:))));
   [srt, indx] = sort(m);
   M    = M(indx,:);
   M    = M*diag(sign(diag(M)));
@@ -111,21 +113,22 @@ sx = 1;
 sy = siz(1);
 sz = siz(1) * siz(2);
 
-if isfield(source, 'inside') && isfield(source, 'outside') && size(source.pos,1)==Nfull
+if isfield(source, 'inside') && size(source.pos,1)==Nfull
   % it contains all source positions
-  inside = source.inside;
-  outside = source.outside;
+  inside  = find( source.inside);
+  outside = find(~source.inside);
 else
   % it only contains the inside source positions, which are all inside the brain
   % reconstruct the original inside and outside grid locations
-  inside = zeros(Nsparse,1);
-  for i=1:Nsparse
+  inside = false(Nfull,1);
+  for i=find(source.inside(:)')
     fx = find(xgrid==sparsepos(i,1));
     fy = find(ygrid==sparsepos(i,2));
     fz = find(zgrid==sparsepos(i,3));
-      inside(i) = (fx-1)*sx + (fy-1)*sy + (fz-1)*sz + 1;
+      inside((fx-1)*sx + (fy-1)*sy + (fz-1)*sz + 1) = true;
   end
-  outside = setdiff([1:Nfull]', inside);
+  outside = find(~inside);
+  inside  = find( inside);
 end
 
 fprintf('total number of dipoles        : %d\n', length(inside)+length(outside));
@@ -134,7 +137,7 @@ fprintf('number of dipoles outside brain: %d\n', length(outside));
 
 % determine whether the source is old or new style
 fnames = fieldnames(source);
-if any(~cellfun('isempty', strfind(fnames, 'dimord'))),
+if any(contains(fnames, 'dimord'))
   stype = 'new';
 else
   stype = 'old';
@@ -144,25 +147,25 @@ if strcmp(stype, 'old')
   % original code
   % first do the non-trial fields
   source.dim = [1 length(inside) 1]; %to fool parameterselection
-  [param]    = parameterselection('all', source);
-  trlparam   = strmatch('trial', param);
-  sel        = setdiff(1:length(param), trlparam);
-  ind=find(ismember(param,'inside')); % find the index of 'inside' field
-  % because its position varies with isfield('plvspctrm') vs. 'cohspctrm'
-  param      = param(sel(ind));
+  param      = parameterselection('all', source);
+  trlparam   = startsWith(param, 'trial');
+  param      = param(~trlparam);
+  param(ismember(param, {'inside' 'pos'})) = [];
   
   for j = 1:length(param)
     dat = getsubfield(source, param{j});
     if islogical(dat)
-      tmp         = false(1,Nfull); 
-      tmp(inside) = dat;
+      siz         = [size(dat) 1];
+      tmp         = false(Nfull, siz(2:end)); 
+      tmp(inside,:,:) = dat;
     elseif iscell(dat)
-      tmp          = cell(1,Nfull);
+      tmp          = cell(Nfull,1);
       tmp(inside)  = dat;
       %tmp(outside) = nan;
     else
-      tmp         = nan(1,Nfull);
-      tmp(inside) = dat;   
+      siz         = [size(dat) 1];
+      tmp         = nan(Nfull, siz(2:end));
+      tmp(inside,:,:) = dat;   
     end
     source = setsubfield(source, param{j}, tmp);
   end
@@ -257,6 +260,8 @@ if strcmp(stype, 'old')
   source.outside = outside;
   source.pos     = pos;
   source.dim     = siz;
+  source         = fixinside(source, 'logical');
+  
 elseif strcmp(stype, 'new')
   % new style conversion
   fn = fieldnames(source);
@@ -302,8 +307,9 @@ elseif strcmp(stype, 'new')
   source.inside  = inside;
   source.outside = outside;
   source.pos     = pos;
-
+  source         = fixinside(source, 'logical');
 end
+
 cfg = [];
 % add version information to the configuration
 try
