@@ -55,7 +55,7 @@ source5           = ft_sourceanalysis(cfg, tlock);
 cfg.lcmv.weightnorm = 'unitnoisegain';
 cfg.lcmv.fixedori = 'yes';
 source6           = ft_sourceanalysis(cfg, tlock);
-edit ft
+
 inside = find(source1.inside);
 wl1 = zeros(source1.dim);
 wl2 = zeros(source2.dim);
