@@ -345,12 +345,13 @@ for i=1:size(sourcemodel.pos,1)
         if fixedori
           filt = pinv(sqrt(lf' * invC_squared * lf)) * lf' *invC; % S&N eqn. 4.15
         else
-          % compute the matrix that is used for scaling of the filter's rows, as per eqn. 4.83
-          denom = pinv(lf' * invC * lf);
-          gamma = denom * (lf' * invC_squared * lf) * denom;
-          
-          % compute the spatial filter, as per eqn. 4.85
-          filt = diag(1./sqrt(diag(gamma))) * denom * lf' * invC;
+          %% compute the matrix that is used for scaling of the filter's rows, as per eqn. 4.83
+          %denom = pinv(lf' * invC * lf);
+          %gamma = denom * (lf' * invC_squared * lf) * denom;
+          %
+          %% compute the spatial filter, as per eqn. 4.85
+          %filt = diag(1./sqrt(diag(gamma))) * denom * lf' * invC;
+          filt = pinv(sqrtm(lf' * invC_squared * lf)) * lf' *invC;  
         end
       case 'arraygain'
         % filt*lf = ||lf||, applies to scalar leadfield, and to one of the possibilities of the vector version, eqn. 4.75
