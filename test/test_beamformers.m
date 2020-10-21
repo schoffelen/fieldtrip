@@ -55,7 +55,7 @@ source5           = ft_sourceanalysis(cfg, tlock);
 cfg.lcmv.weightnorm = 'unitnoisegain';
 cfg.lcmv.fixedori = 'yes';
 source6           = ft_sourceanalysis(cfg, tlock);
-
+edit ft
 inside = find(source1.inside);
 wl1 = zeros(source1.dim);
 wl2 = zeros(source2.dim);
@@ -72,7 +72,7 @@ for k = 1:numel(inside)
   
   % vector versions
   wl1(ix1,ix2,ix3) = trace(source1.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %rotated wtl=eye(2); Stimmt
-  wl3(ix1,ix2,ix3) = trace(source3.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %?
+  wl3(ix1,ix2,ix3) = trace(source3.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %rotated wtl=sqrt(ltl); Stimmt
   wl5(ix1,ix2,ix3) = trace(source5.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %?
   
   % scalar versions
@@ -85,6 +85,7 @@ for k = 1:numel(inside)
   ww6(ix1,ix2,ix3) = source6.avg.filter{inside(k)}*source6.avg.filter{inside(k)}'; %wtw=1; Stimmt
   
   % leadfield norm, as per checking the arraygain constraint
-  ll3(ix1,ix2,ix3) = sum(sum(leadfield.leadfield{inside(k)}.^2));
+  ll3(ix1,ix2,ix3) = norm(leadfield.leadfield{inside(k)}).^2; %sum(sum(leadfield.leadfield{inside(k)}.^2)); % this is the frobenius norm
   ll4(ix1,ix2,ix3) = sum((leadfield.leadfield{inside(k)}*source4.avg.ori{inside(k)}).^2);
 end
+keyboard
