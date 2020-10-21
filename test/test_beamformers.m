@@ -88,4 +88,3 @@ for k = 1:numel(inside)
   ll3(ix1,ix2,ix3) = norm(leadfield.leadfield{inside(k)}).^2; %sum(sum(leadfield.leadfield{inside(k)}.^2)); % this is the frobenius norm
   ll4(ix1,ix2,ix3) = sum((leadfield.leadfield{inside(k)}*source4.avg.ori{inside(k)}).^2);
 end
-keyboard
