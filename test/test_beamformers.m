@@ -73,7 +73,7 @@ for k = 1:numel(inside)
   % vector versions
   wl1(ix1,ix2,ix3) = trace(source1.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %rotated wtl=eye(2); Stimmt
   wl3(ix1,ix2,ix3) = trace(source3.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %rotated wtl=sqrt(ltl); Stimmt
-  wl5(ix1,ix2,ix3) = trace(source5.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %?
+  wl5(ix1,ix2,ix3) = trace(source5.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}); %? -> when reverting to sqrtm, it all makes sense
   
   % scalar versions
   wl2(ix1,ix2,ix3) = source2.avg.filter{inside(k)}*leadfield.leadfield{inside(k)}*source2.avg.ori{inside(k)}; %wtl=1; Stimmt
