@@ -112,3 +112,48 @@ for i=1:length(ctf)
   
 end
 
+%%
+
+dataset = dccnpath('/home/common/matlab/fieldtrip/data/Subject01.ds');
+
+grad = ft_read_sens(dataset, 'senstype', 'meg');
+
+headmodel = [];
+headmodel.o = [0 0 40];
+headmodel.r = 120;
+headmodel.unit = 'mm';
+headmodel.type = 'singlesphere';
+
+cfg = [];
+cfg.grad = grad;
+cfg.headmodel = headmodel;
+cfg.sourcemodel.pos = [0 0 70];
+cfg.sourcemodel.unit = 'mm';
+
+cfg.channel = 'MEG';
+sourcemodel = ft_prepare_leadfield(cfg);
+% it should be sorted in alphabetical order (since CTF)
+assert(isequal(sourcemodel.label, sort(sourcemodel.label)))
+
+cfg.channel = ft_channelselection('MEG', grad.label);
+sourcemodel = ft_prepare_leadfield(cfg);
+% it should be sorted in alphabetical order (since CTF)
+assert(isequal(sourcemodel.label, sort(sourcemodel.label)))
+
+% The following section does not work as I had expected, since the output is still alphabetical
+%
+% cfg.channel = flipud(ft_channelselection('MEG', grad.label));
+% sourcemodel = ft_prepare_leadfield(cfg);
+% % it should NOT be sorted
+% assert(~isequal(sourcemodel.label, sort(sourcemodel.label)))
+
+montage = [];
+montage.tra = flipud(eye(151));
+montage.labelold = ft_channelselection('MEG', grad.label);
+montage.labelnew = flipud(ft_channelselection('MEG', grad.label));
+
+cfg.grad = ft_apply_montage(grad, montage);
+cfg.channel = 'MEG';
+sourcemodel = ft_prepare_leadfield(cfg);
+% it should NOT be sorted in alphabetical order, since I flipped it in the grad
+assert(isequal(sourcemodel.label, ~sort(sourcemodel.label)))
