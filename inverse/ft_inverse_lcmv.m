@@ -250,18 +250,18 @@ if ~strcmp(eigenspace, 'no')
     ft_error('Please supply an integer number of components');
   end
   ft_info('Using eigenspace beamformer');
-  M = length(C);
   Q = eigenspace;
   
-  [eigvec, eigval] = eig(C);
+  [E_S, Lambda_S] = eig(C);
+
+  % sort from large to small
+  [dum, ix] = sort(diag(Lambda_S), 'descend');
+  E_S       = E_S(:,ix);
+  Lambda_S  = Lambda_S(ix,ix); 
   
   % select the Q largest eigenvalues and the corresponding eigenvectors
-  E_S      = eigvec(:, (M-Q+1):end);
-  Lambda_S = eigval((M-Q+1):end, (M-Q+1):end); % equation (7)
-  
-  % sort from high to low eigenvalues/vectors
-  E_S      = E_S(:,end:-1:1);
-  Lambda_S = Lambda_S(end:-1:1,end:-1:1);
+  E_S      = E_S(:, 1:Q);
+  Lambda_S = Lambda_S(1:Q, 1:Q);
   
   % rotate because "eig" puts strongest vectors and values at the end
   %E_S      = rot90(E_S, 2); -> this is not correct I think, because it also reverse the order of the rows. it should be:

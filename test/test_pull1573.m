@@ -115,40 +115,43 @@ white_leadfield = ft_prepare_leadfield(cfg);
 n_components = 10; %% we can try different numbers
 
 % "normal" lcmv
-cfg = [];
-cfg.method = 'lcmv';
-cfg.sourcemodel = leadfield;
-cfg.headmodel = headmodel;
+cfg                 = [];
+cfg.method          = 'lcmv';
+cfg.sourcemodel     = leadfield;
+cfg.headmodel       = headmodel;
 cfg.lcmv.keepfilter = 'yes';
-cfg.lcmv.fixedori   = 'yes';
+%cfg.lcmv.fixedori   = 'yes';
 cfg.lcmv.projectnoise = 'yes';
 %cfg.lcmv.weightnorm = 'arraygain'; % this is not ideal for a one-to-one
 %comparison, let's switch off for now.
 
-cfg.lcmv.eigenspace = 'no';
-source              = ft_sourceanalysis(cfg, timelock);
+cfg2 = [];
+cfg2.projectmom = 'yes';
 
-cfg.sourcemodel = white_leadfield;
-source_white    = ft_sourceanalysis(cfg, white_timelock);
+cfg.lcmv.eigenspace = 'no';
+source              = ft_sourcedescriptives(cfg2, ft_sourceanalysis(cfg, timelock));
+
+cfg.sourcemodel     = white_leadfield;
+source_white        = ft_sourcedescriptives(cfg2, ft_sourceanalysis(cfg, white_timelock));
 
 % eigenspace
-cfg.sourcemodel         = leadfield;
-cfg.lcmv.eigenspace     = n_components;
-source_eigenspace       = ft_sourceanalysis(cfg, timelock);
+cfg.sourcemodel     = leadfield;
+cfg.lcmv.eigenspace = n_components;
+source_eigenspace   = ft_sourcedescriptives(cfg2, ft_sourceanalysis(cfg, timelock));
 
 cfg.sourcemodel         = white_leadfield;
 cfg.lcmv.prewhitened    = 'yes';
-source_white_eigenspace = ft_sourceanalysis(cfg, white_timelock);
+source_white_eigenspace = ft_sourcedescriptives(cfg2, ft_sourceanalysis(cfg, white_timelock));
 
 % subspace
 cfg.sourcemodel       = leadfield;
 cfg.lcmv.eigenspace   = 'no';
 cfg.lcmv.prewhitened  = 'no';
 cfg.lcmv.subspace     = n_components;
-source_subspace       = ft_sourceanalysis(cfg, timelock);
+source_subspace       = ft_sourcedescriptives(cfg2, ft_sourceanalysis(cfg, timelock));
 
 cfg.sourcemodel       = white_leadfield;
-source_white_subspace = ft_sourceanalysis(cfg, white_timelock);
+source_white_subspace = ft_sourcedescriptives(cfg2, ft_sourceanalysis(cfg, white_timelock));
 
 sources = {source source_white ...
            source_eigenspace source_white_eigenspace ...
