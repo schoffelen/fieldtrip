@@ -10,6 +10,72 @@ if nargin==0
   datadir = dccnpath('/home/common/matlab/fieldtrip/data/');
 end
 
+%% THIS FIRST PART SHOWS THE EQUIVALENCE BETWEEN LAU'S IMPLEMENTATION AND JM'S IMPLEMENTATION
+
+dat = randn(100,15)*randn(15,200)+randn(100,200);
+C = dat*dat';
+C = C./200;
+
+lf = randn(100,1); % for vector case, change the 1 into a 3
+
+invC = pinv(C);
+Q    = 10;
+
+%% Lau's implementation of the eigenspace filter
+  
+[E_S, Lambda_S] = eig(C);
+
+% sort from large to small
+[dum, ix] = sort(diag(Lambda_S), 'descend');
+E_S       = E_S(:,ix);
+Lambda_S  = Lambda_S(ix,ix);
+
+% select the Q largest eigenvalues and the corresponding eigenvectors
+E_S      = E_S(:, 1:Q);
+Lambda_S = Lambda_S(1:Q, 1:Q);
+
+Gamma = E_S * diag(1./diag(Lambda_S)) * E_S';
+
+mu = pinv(lf' * invC * lf);
+filtLau = mu * lf' * Gamma; % equation 10
+
+%% JM's implementation of the eigenspace filter
+
+[u, s, v] = svd(real(C));
+
+Cs       = s(1:Q,1:Q);
+% this is equivalent to subspace*C*subspace' but behaves well numerically by construction.
+invCs     = diag(1./diag(Cs));
+subspace = u(:,1:Q)';
+dats      = subspace*dat;
+lfs       = subspace*lf;
+
+
+filts = pinv(lfs' * invCs * lfs) * lfs' * invCs;
+
+filtJM = filts*subspace;
+
+figure;plot(filtLau, filtJM, 'o');
+
+% conclusion: scalar versions are equivalent up to a scaling of the filter
+% weights. JM's version has the unit gain constraint preserved, Lau's
+% version does not.
+%
+% vector version are NOT equivalent, due to Lau's version using the invC (non orthogonal) in
+% the denominator, and JM's version using the subspace covariance (which by
+% definition is orthogonal). Therefore, in Lau's version the leadfield
+% components influence each other, and the filt*lf is far away from
+% diagonal (which I think is undesired). In Kensuke's paper, I couldn't
+% find back any specific statements about the vector case, so it seems that
+% the paper is built on the implicit assumption that the orientation of the
+% dipoles is known (and fixed). 
+
+
+
+
+
+
+
 %% INITIALIZE
 % this should be done outside the function, if it's to be run as a test
 % function on a more or less daily basis
