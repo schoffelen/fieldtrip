@@ -145,19 +145,21 @@ switch cfg.method
     cfg.absnoise = ft_getopt(cfg, 'absnoise', zeros(cfg.nsignal,1));
     cfg          = ft_checkconfig(cfg, 'required', {'params' 'noisecov'});
   case {'linear_mix'}
-    cfg.bpfilter = ft_getopt(cfg, 'bpfilter', 'yes');
-    cfg.bpfreq   = ft_getopt(cfg, 'bpfreq',   [15 25]);
+    cfg.bpfilter   = ft_getopt(cfg, 'bpfilter', 'yes');
+    cfg.bpfreq     = ft_getopt(cfg, 'bpfreq',   [15 25]);
     cfg.bpfilttype = ft_getopt(cfg, 'bpfilttype', 'firws');
-    cfg.demean   = ft_getopt(cfg, 'demean',   'yes');
-    cfg.absnoise = ft_getopt(cfg, 'absnoise', 1);
-    cfg          = ft_checkconfig(cfg, 'required', {'mix' 'delay'});
+    cfg.demean     = ft_getopt(cfg, 'demean',   'yes');
+    cfg.absnoise   = ft_getopt(cfg, 'absnoise', 1);
+    cfg.noisetype  = ft_getopt(cfg, 'noisetype', 'white');
+    cfg            = ft_checkconfig(cfg, 'required', {'mix' 'delay'});
   case {'mvnrnd'}
-    cfg.bpfilter = ft_getopt(cfg, 'bpfilter', 'yes');
-    cfg.bpfreq   = ft_getopt(cfg, 'bpfreq',   [15 25]);
+    cfg.bpfilter   = ft_getopt(cfg, 'bpfilter', 'yes');
+    cfg.bpfreq     = ft_getopt(cfg, 'bpfreq',   [15 25]);
     cfg.bpfilttype = ft_getopt(cfg, 'bpfilttype', 'firws');
-    cfg.demean   = ft_getopt(cfg, 'demean',   'yes');
-    cfg.absnoise = ft_getopt(cfg, 'absnoise', 1);
-    cfg          = ft_checkconfig(cfg, 'required', {'covmat' 'delay'});
+    cfg.demean     = ft_getopt(cfg, 'demean',   'yes');
+    cfg.absnoise   = ft_getopt(cfg, 'absnoise', 1);
+    cfg.noisetype  = ft_getopt(cfg, 'noisetype', 'white');
+    cfg            = ft_checkconfig(cfg, 'required', {'covmat' 'delay'});
   case {'ar_reverse'}
     % reverse engineered high order ar-model
     cfg = ft_checkconfig(cfg, 'required', {'coupling' 'delay' 'ampl' 'bpfreq'});
@@ -276,11 +278,30 @@ switch cfg.method
       trial{tr} = tmp;
       
       % add some noise
-      trial{tr} = ft_preproc_baselinecorrect(trial{tr} + cfg.absnoise*randn(size(trial{tr})));
+      switch cfg.noisetype
+        case 'white'
+          noise = cfg.absnoise*randn(size(trial{tr}));
+        case 'pink'
+          noise = randn(size(trial{tr}));
+          noise = cumsum(noise, 2);
+          noise = noise ./ std(noise, [], 2);
+          noise = cfg.absnoise*noise;
+          
+        otherwise
+          ft_error('unsupported noisetype requested');
+      end
+      trial{tr} = ft_preproc_baselinecorrect(trial{tr} + noise);
       
       % define time axis for this trial
       time{tr}  = tim;
     end
+    
+    % create the output data
+    simulated         = [];
+    simulated.trial   = trial;
+    simulated.time    = time;
+    simulated.fsample = cfg.fsample;
+    simulated.label   = label;
     
   case {'mvnrnd'}
     fltpad = 100; % hard coded
@@ -304,7 +325,18 @@ switch cfg.method
       trial{k} = newtmp;
       
       % add some noise
-      trial{k} = ft_preproc_baselinecorrect(trial{k} + cfg.absnoise*randn(size(trial{k})));
+      switch cfg.noisetype
+        case 'white'
+          noise = cfg.absnoise*randn(size(trial{k}));
+        case 'pink'
+          noise = randn(size(trial{k}));
+          noise = cumsum(noise, 2);
+          noise = noise ./ std(noise, [], 2);
+          noise = cfg.absnoise*noise;
+        otherwise
+          ft_error('unsupported noisetype requested');
+      end
+      trial{k} = ft_preproc_baselinecorrect(trial{k} + noise);
       
       % define time axis for this trial
       time{k}  = tim;
