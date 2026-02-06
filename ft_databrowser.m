@@ -717,6 +717,7 @@ if ~isempty(cfg.colormap)
 end
 
 % put appdata in figure
+setappdata(h, 'gui_locked', false); % for fast toggling of enabling/disabling callbacks
 setappdata(h, 'opt', opt);
 setappdata(h, 'cfg', cfg);
 
@@ -1305,21 +1306,36 @@ end % function enable_buttons
 % SUBFUNCTION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function enable_callbacks(h, bool)
-h = getparent(h);
-cfg = getappdata(h, 'cfg');
-if bool
-  set(h, 'ResizeFcn',             @resize_cb);
-  set(h, 'KeyPressFcn',           @keypress_cb);
-  set(h, 'WindowButtonDownFcn',   {@ft_select_range, 'multiple', false, 'xrange', true, 'yrange', false, 'clear', true, 'contextmenu', cfg.selfun, 'callback', {@select_range_cb, h}, 'event', 'WindowButtonDownFcn'});
-  set(h, 'WindowButtonUpFcn',     {@ft_select_range, 'multiple', false, 'xrange', true, 'yrange', false, 'clear', true, 'contextmenu', cfg.selfun, 'callback', {@select_range_cb, h}, 'event', 'WindowButtonUpFcn'});
-  set(h, 'WindowButtonMotionFcn', {@ft_select_range, 'multiple', false, 'xrange', true, 'yrange', false, 'clear', true, 'contextmenu', cfg.selfun, 'callback', {@select_range_cb, h}, 'event', 'WindowButtonMotionFcn'});
-else
-  set(h, 'ResizeFcn',             []);
-  set(h, 'KeyPressFcn',           []);
-  set(h, 'WindowButtonDownFcn',   []);
-  set(h, 'WindowButtonUpFcn',     []);
-  set(h, 'WindowButtonMotionFcn', []);
-end
+
+setappdata(h, 'gui_locked', ~bool);
+
+% h = getparent(h);
+% cfg = getappdata(h, 'cfg');
+% 
+% if bool
+%   % Enable UI: Hide the shield and reset cursor
+%   set(cfg.shield, 'Visible', 'off');
+% else
+%   % Disable UI: Show the shield and show busy cursor
+%   set(cfg.shield, 'Visible', 'on');
+% end
+
+
+% h = getparent(h);
+% cfg = getappdata(h, 'cfg');
+% if bool
+%   set(h, 'ResizeFcn',             @resize_cb);
+%   set(h, 'KeyPressFcn',           @keypress_cb);
+%   set(h, 'WindowButtonDownFcn',   {@ft_select_range, 'multiple', false, 'xrange', true, 'yrange', false, 'clear', true, 'contextmenu', cfg.selfun, 'callback', {@select_range_cb, h}, 'event', 'WindowButtonDownFcn'});
+%   set(h, 'WindowButtonUpFcn',     {@ft_select_range, 'multiple', false, 'xrange', true, 'yrange', false, 'clear', true, 'contextmenu', cfg.selfun, 'callback', {@select_range_cb, h}, 'event', 'WindowButtonUpFcn'});
+%   set(h, 'WindowButtonMotionFcn', {@ft_select_range, 'multiple', false, 'xrange', true, 'yrange', false, 'clear', true, 'contextmenu', cfg.selfun, 'callback', {@select_range_cb, h}, 'event', 'WindowButtonMotionFcn'});
+% else
+%   set(h, 'ResizeFcn',             []);
+%   set(h, 'KeyPressFcn',           []);
+%   set(h, 'WindowButtonDownFcn',   []);
+%   set(h, 'WindowButtonUpFcn',     []);
+%   set(h, 'WindowButtonMotionFcn', []);
+% end
 end % function enable_windowbuttoncallback
 
 
@@ -1360,6 +1376,7 @@ function keypress_cb(h, eventdata)
 % disable the buttons to prevent piling up of GUI events, they are enabled again at the end of the function
 enable_buttons(h, false);
 
+tic
 if (isempty(eventdata) && ft_platform_supports('matlabversion', -Inf, '2014a')) || isa(eventdata, 'matlab.ui.eventdata.ActionData')
   % determine the key that corresponds to the uicontrol element that was activated
   key = get(h, 'userdata');
@@ -1367,6 +1384,7 @@ else
   % determine the key that was pressed on the keyboard
   key = parsekeyboardevent(eventdata);
 end
+toc
 
 h = getparent(h);
 opt = getappdata(h, 'opt');
@@ -1532,15 +1550,15 @@ switch key
     definetrial_cb(h, eventdata);
     redraw_cb(h, eventdata);
   case 'shift+uparrow'
-    cfg.ylim = cfg.ylim/sqrt(2);
-    setappdata(h, 'opt', opt);
+    newylim  = cfg.ylim/sqrt(2);
+    update_ylim(h, cfg.ylim, newylim);
+    cfg.ylim = newylim;
     setappdata(h, 'cfg', cfg);
-    redraw_cb(h, eventdata);
   case 'shift+downarrow'
-    cfg.ylim = cfg.ylim*sqrt(2);
-    setappdata(h, 'opt', opt);
+    newylim = cfg.ylim*sqrt(2);
+    update_ylim(h, cfg.ylim, newylim);
+    cfg.ylim = newylim;
     setappdata(h, 'cfg', cfg);
-    redraw_cb(h, eventdata);
   case 'p'
     preproc_cfg1_cb(h, eventdata);
   case 'q'
@@ -1707,9 +1725,9 @@ switch key
   otherwise
     help_cb(h, eventdata);
 end
-
 enable_buttons(h, true);
 uiresume(h);
+
 end % function keypress_cb
 
 
@@ -1736,6 +1754,8 @@ end % function resize_cb
 % SUBFUNCTION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function redraw_cb(h, eventdata)
+
+tic;
 
 % disable the interactive callbacks to prevent piling up of GUI events, they are enabled again at the end of the function
 enable_callbacks(h, false);
@@ -2208,6 +2228,8 @@ else
 
 end % if strcmp viewmode
 
+toc
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % add the ticks along the horizontal axis
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2378,7 +2400,7 @@ end
 title(str);
 
 % possibly adds some responsiveness if the 'thing' is clogged
-drawnow
+%drawnow
 
 % restore the originally selected list of channels, in case a set of
 % additional fixed channels was selected
@@ -2388,3 +2410,20 @@ setappdata(h, 'opt', opt);
 setappdata(h, 'cfg', cfg);
 enable_callbacks(h, true);
 end % function redraw_cb
+
+function update_ylim(h, from, to)
+
+h   = getparent(h);
+tcs = findobj(h, 'tag', 'timecourse');
+
+from_shift = -diff(from)./2;
+to_shift   = -diff(to)./2;
+scale      = (to(2) - to_shift)./(from(2) - from_shift);
+
+for i=1:numel(tcs)
+  tcs(i).YData = scale\(tcs(i).YData-0.5) + 0.5;
+end
+
+%keyboard
+end
+

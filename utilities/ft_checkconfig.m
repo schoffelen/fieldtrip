@@ -784,8 +784,11 @@ s = fieldnames(cfg);
 t = cellfun(@class, c, 'UniformOutput', false);
 
 % convert
-[c{:}] = convertStringsToChars(c{:});
-cfg = cell2struct(c,s,1);
+tstring = strcmp(t, 'string');
+if any(tstring)
+  [c{tstring}] = convertStringsToChars(c{tstring});
+  cfg = cell2struct(c,s,1);
+end
 
 % deal with cell-arrays
 if any(strcmp(t, 'cell'))

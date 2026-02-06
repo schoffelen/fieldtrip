@@ -180,10 +180,12 @@ if point
     ncol = size(pointcolor, 1);
     nsym = numel(pointsymbol);
     nsiz = numel(pointsize);
-    if (ncol == nsym) && (nsym == nsiz) && nsiz == 1 % One value for all
-      plot(X, Y, 'marker', pointsymbol, 'color', pointcolor, 'markersize', pointsize, 'linestyle', 'none');
+    if all([nsym nsiz]==1) 
+      % a single value for each of the attributes or multiple colors
+      %plot(X, Y, 'marker', pointsymbol, 'color', pointcolor, 'markersize', pointsize, 'linestyle', 'none');
+      scatter(X, Y, pointsize, pointcolor, pointsymbol, 'filled');
     else % One of the parameters has more than one value, loop
-    % Expand the values to match the number of plotted markers
+      % Expand the values to match the number of plotted markers
       if ncol == 1
         pointcolor = repmat(pointcolor, numel(X), 1);
       end
@@ -193,10 +195,10 @@ if point
       if nsiz == 1
         pointsize = repmat(pointsize, [numel(X) 1]);
       end  
-    % Loop
-    for k = 1:numel(X)
-      plot(X(k), Y(k), 'marker', pointsymbol(k), 'markerfacecolor', pointcolor(k, :), 'markersize', pointsize(k), 'color', [0 0 0]);
-    end
+      % Loop
+      for k = 1:numel(X)
+        plot(X(k), Y(k), 'marker', pointsymbol(k), 'markerfacecolor', pointcolor(k, :), 'markersize', pointsize(k), 'color', [0 0 0]);
+      end
     end
   else
     plot(X, Y, 'marker', '.', 'color', 'b', 'linestyle', 'none');

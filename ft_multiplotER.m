@@ -242,6 +242,18 @@ if Ndata>1
   if isequal(cfg.linecolor, 'spatial')
     ft_error('with multiple data inputs cfg.linecolor=''spatial'' is not permitted');
   end
+  if isequal(cfg.viewmode, 'buttefly')
+    ft_error('with multiple data arguments in the input, a butterfly viewmode is not permitted');
+  end
+end
+
+if isequal(cfg.maskstyle, 'difference')
+  if Ndata~=2
+    ft_error('with cfg.maskstyle=''difference'' two input data arguments are required');
+  end
+  if isequal(viewmode, 'butterfly')
+    ft_error('with cfg.maskstyle=''difference'' a butterfly viewmode is not permitted');
+  end
 end
 
 if isfield(cfg, 'layout') && (isequal(cfg.layout, 'butterfly')||isequal(cfg.viewmode, 'butterfly')) && istrue(cfg.showscale)
@@ -255,7 +267,7 @@ end
 % check it's length, and lengthen it if does not have enough styles in it
 if (length(cfg.linestyle) > 1) && (length(cfg.linestyle) < Ndata )
   ft_error('either specify cfg.linestyle as a cell-array with one cell for each dataset, or only specify one linestyle')
-elseif (length(cfg.linestyle) == 1)
+elseif isscalar(cfg.linestyle)
   cfg.linestyle = repmat(cfg.linestyle, 1, Ndata);
 end
 
@@ -444,7 +456,7 @@ if isequal(cfg.viewmode, 'butterfly')
   % create two layouts, one for butterfly and another for topographic
   cfg.topolayout = ft_prepare_layout(tmpcfg, varargin{1}); % this will be passed to singleplot and topoplot
   tmpcfg.layout = 'butterfly';
-  cfg.layout = ft_prepare_layout(tmpcfg, varargin{1});
+  cfg.layout = ft_prepare_layout(tmpcfg);
   % copy the topographic colors over to the butterfly layout
   [chanindx1, chanindx2] = match_str(cfg.layout.label, cfg.topolayout.label);
   cfg.layout.color = zeros(length(cfg.layout.label), 3); % RGB triplets
@@ -553,29 +565,40 @@ chanLabel  = cfg.layout.label(sellay);
 % open a new figure, or add it to the existing one
 open_figure(keepfields(cfg, {'figure', 'position', 'visible', 'renderer', 'figurename', 'title'}));
 
-% Plot the data
-for m=1:length(selchan)
-  mask = maskmatrix(m, :);
-  if strcmp(cfg.maskstyle, 'difference')
-    % combine the conditions in a single plot, highlight the difference
-    yval = squeeze(datamatrix(:,m,:));
-    % Clip out of bounds y values:
-    yval(yval > ymax) = ymax;
-    yval(yval < ymin) = ymin;
-    ft_plot_vector(xval, yval, 'width', chanWidth(m), 'height', chanHeight(m), 'hpos', chanX(m), 'vpos', chanY(m), 'hlim', [xmin xmax], 'vlim', [ymin ymax], 'color', permute(linecolor(m,:,1:2), [3 2 1]), 'style', cfg.linestyle{1}, 'linewidth', cfg.linewidth, 'axis', cfg.axes, 'highlight', mask, 'highlightstyle', cfg.maskstyle, 'facealpha', cfg.maskfacealpha);
-  else
-    % loop over the conditions, plot them on top of each other
-    for i=1:Ndata
-      yval = squeeze(datamatrix(i,m,:));
-      % clip out of bounds y values:
+if ~isequal(cfg.viewmode, 'butterfly') || ~isequal(cfg.maskstyle, 'box') || ~isempty(maskmatrix)
+  % Plot the data with a call to ft_plot_vector per channel
+  for m=1:length(selchan)
+    mask = maskmatrix(m, :);
+    if strcmp(cfg.maskstyle, 'difference')
+      % combine the conditions in a single plot, highlight the difference
+      yval = squeeze(datamatrix(:,m,:));
+      % Clip out of bounds y values:
       yval(yval > ymax) = ymax;
       yval(yval < ymin) = ymin;
-      % select the color for the channel/condition
-      color = linecolor(m,:,i);
-      ft_plot_vector(xval, yval, 'width', chanWidth(m), 'height', chanHeight(m), 'hpos', chanX(m), 'vpos', chanY(m), 'hlim', [xmin xmax], 'vlim', [ymin ymax], 'color', color, 'style', cfg.linestyle{i}, 'linewidth', cfg.linewidth, 'axis', cfg.axes, 'highlight', mask, 'highlightstyle', cfg.maskstyle, 'facealpha', cfg.maskfacealpha);
+      ft_plot_vector(xval, yval, 'width', chanWidth(m), 'height', chanHeight(m), 'hpos', chanX(m), 'vpos', chanY(m), 'hlim', [xmin xmax], 'vlim', [ymin ymax], 'color', permute(linecolor(m,:,1:2), [3 2 1]), 'style', cfg.linestyle{1}, 'linewidth', cfg.linewidth, 'axis', cfg.axes, 'highlight', mask, 'highlightstyle', cfg.maskstyle, 'facealpha', cfg.maskfacealpha);
+    else
+      % loop over the conditions, plot them on top of each other
+      for i=1:Ndata
+        yval = squeeze(datamatrix(i,m,:));
+        % clip out of bounds y values:
+        yval(yval > ymax) = ymax;
+        yval(yval < ymin) = ymin;
+        % select the color for the channel/condition
+        color = linecolor(m,:,i);
+        ft_plot_vector(xval, yval, 'width', chanWidth(m), 'height', chanHeight(m), 'hpos', chanX(m), 'vpos', chanY(m), 'hlim', [xmin xmax], 'vlim', [ymin ymax], 'color', color, 'style', cfg.linestyle{i}, 'linewidth', cfg.linewidth, 'axis', cfg.axes, 'highlight', mask, 'highlightstyle', cfg.maskstyle, 'facealpha', cfg.maskfacealpha);
+      end
     end
-  end
-end % for number of channels
+  end % for number of channels
+else
+  % Plot the data with a single call to ft_plot_vector across channels
+  yval = shiftdim(datamatrix(1,:,:));
+  % clip out of bounds y values:
+  yval(yval > ymax) = ymax;
+  yval(yval < ymin) = ymin;
+  % select the color for the channel/condition
+  color = linecolor;
+  ft_plot_vector(xval, yval, 'width', chanWidth(1), 'height', chanHeight(1), 'hpos', chanX(1), 'vpos', chanY(1), 'hlim', [xmin xmax], 'vlim', [ymin ymax], 'color', color, 'style', linestyle, 'linewidth', linewidth, 'axis', cfg.axes);
+end
 
 if strcmp(cfg.viewmode, 'topographic')
   % plot the layout, labels and outline for each channel
@@ -592,7 +615,7 @@ elseif strcmp(cfg.viewmode, 'butterfly')
   [chanindx1, chanindx2] = match_str(cfg.topolayout.label, cfg.channel);
   pointcolor = zeros(length(cfg.topolayout.label), 3);
   pointcolor(chanindx1,:) = linecolor(chanindx2, :);
-  ft_plot_layout(cfg.topolayout, 'box', 'no', 'label', 'off', 'point', 'yes', 'pointcolor', pointcolor, 'pointsize', 5, 'pointsymbol', 'o', 'hpos', hpos, 'vpos', vpos, 'height', h, 'width', w, 'chanindx', chanindx1);
+  ft_plot_layout(cfg.topolayout, 'box', 'no', 'label', 'off', 'point', 'yes', 'pointcolor', pointcolor, 'pointsize', 10, 'pointsymbol', 'o', 'hpos', hpos, 'vpos', vpos, 'height', h, 'width', w, 'chanindx', chanindx1);
 end
 
 % write comment

@@ -395,19 +395,32 @@ switch highlightstyle
       end
     elseif isnumeric(color) && size(color, 1)==nline
       % the color is specified as Nx3 matrix with RGB values for each line  -> this is as of 2022 the second likely use case
-      for i=1:size(vdat, 1)
-        if numel(style)>1
-          style_i = style{i};
-        else
-          style_i = style;
-        end
-        if numel(linewidth)>1
-          linewidth_i = linewidth(i);
-        else
-          linewidth_i = linewidth;
-        end
-        h(i) = plot(hdat, vdat(i, :), style_i, 'LineWidth', linewidth_i, 'Color', color(i, :), 'markersize', markersize, 'markerfacecolor', markerfacecolor);
+      if numel(style)>1
+        style_i = style{1};
+      else
+        style_i = style;
       end
+      if numel(linewidth)>1
+        linewidth_i = linewidth(1);
+      else
+        linewidth_i = linewidth;
+      end
+      h = plot(hdat, vdat, style_i, 'LineWidth', linewidth_i, 'markersize', markersize, 'markerfacecolor', markerfacecolor);
+      set(gca, 'colororder', color);
+
+      % for i=1:size(vdat, 1)
+      %   if numel(style)>1
+      %     style_i = style{i};
+      %   else
+      %     style_i = style;
+      %   end
+      %   if numel(linewidth)>1
+      %     linewidth_i = linewidth(i);
+      %   else
+      %     linewidth_i = linewidth;
+      %   end
+      %   h(i) = plot(hdat, vdat(i, :), style_i, 'LineWidth', linewidth_i, 'Color', color(i, :), 'markersize', markersize, 'markerfacecolor', markerfacecolor);
+      % end
     elseif isnumeric(color) && size(color, 1)==npos
       % the color is specified as Nx3 matrix with RGB values and varies over the length of the line
       for i=1:(size(vdat, 2)-1)
